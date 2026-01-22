@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geometry Guardian</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #ec4899;
+            --accent: #10b981;
+            --bg: #0f172a;
+        }
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: var(--bg);
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+        }
+        .font-header { font-family: 'Outfit', sans-serif; }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .shape-card {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .shape-card:hover {
+            transform: translateY(-10px) scale(1.05);
+            background: rgba(99, 102, 241, 0.2);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        .correct-flash { animation: flashGreen 0.5s ease-out; }
+        @keyframes flashGreen {
+            0% { background-color: rgba(16, 185, 129, 0); }
+            50% { background-color: rgba(16, 185, 129, 0.5); }
+            100% { background-color: rgba(16, 185, 129, 0); }
+        }
+
+        .shake { animation: shake 0.4s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .floating { animation: floating 3s ease-in-out infinite; }
+        @keyframes floating {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+
+        #timer-bar { transition: width 1s linear; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-slate-900">
+        <div class="absolute inset-0 opacity-20 overflow-hidden pointer-events-none">
+            <div class="absolute top-10 left-10 w-32 h-32 bg-indigo-500 rounded-full blur-3xl floating"></div>
+            <div class="absolute bottom-20 right-20 w-48 h-48 bg-pink-500 rounded-full blur-3xl floating" style="animation-delay: -1s"></div>
+        </div>
+        
+        <div class="text-center z-10">
+            <h1 class="font-header text-7xl md:text-9xl mb-2 text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
+                SHAPE MASTER
+            </h1>
+            <p class="text-xl md:text-2xl text-slate-400 mb-12 tracking-widest uppercase font-semibold">Form 2 • Chapter 7: 3D Geometrics</p>
+            
+            <button onclick="startGame()" class="group relative px-12 py-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-3xl font-bold transition-all transform hover:scale-110 active:scale-95 shadow-[0_0_40px_rgba(79,70,229,0.4)]">
+                START CHALLENGE
+                <div class="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-pink-600 rounded-2xl blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+            </button>
+        </div>
+    </div>
+
+    <div id="end-screen" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-slate-900/95 backdrop-blur-xl">
+        <div class="glass p-12 rounded-[3rem] text-center max-w-md w-full border-2 border-indigo-500/30 shadow-2xl">
+            <h2 class="font-header text-5xl mb-4">Well Done!</h2>
+            <div id="star-rating" class="text-6xl mb-6 flex justify-center gap-2"></div>
+            <p class="text-slate-400 text-lg mb-2">FINAL SCORE</p>
+            <div id="final-score" class="text-7xl font-bold text-indigo-400 mb-8">0</div>
+            
+            <button onclick="location.reload()" class="w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-xl text-xl font-bold transition-all border-b-4 border-slate-950">
+                PLAY AGAIN
+            </button>
+        </div>
+    </div>
+
+    <main id="game-container" class="max-w-6xl mx-auto h-full flex flex-col p-4 md:p-8 opacity-0 transition-opacity duration-1000">
+        
+        <div class="flex flex-wrap justify-between items-center mb-8 gap-4">
+            <div class="glass px-6 py-3 rounded-2xl flex items-center gap-4">
+                <div class="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center">
+                    <span class="text-indigo-400 text-2xl">★</span>
+                </div>
+                <div>
+                    <p class="text-[10px] text-slate-400 uppercase font-bold leading-none">Score</p>
+                    <p id="score-display" class="text-3xl font-bold leading-none">0000</p>
+                </div>
+            </div>
+
+            <div class="flex-1 max-w-md glass h-4 rounded-full overflow-hidden">
+                <div id="timer-bar" class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 w-full"></div>
+            </div>
+
+            <div class="glass px-6 py-3 rounded-2xl text-right">
+                <p class="text-[10px] text-slate-400 uppercase font-bold leading-none">Combo</p>
+                <p id="combo-display" class="text-3xl font-bold text-pink-500 leading-none">x1</p>
+            </div>
+        </div>
+
+        <div class="relative mb-12">
+            <div class="glass p-10 rounded-[2.5rem] border-t border-white/10 shadow-inner relative z-10 text-center">
+                <h3 class="text-indigo-300 text-lg font-bold mb-4 uppercase tracking-[0.3em]">Mystery Shape Identification</h3>
+                <p id="clue-text" class="text-2xl md:text-4xl font-semibold leading-relaxed">
+                    Analyzing geometric properties...
+                </p>
+            </div>
+            <div class="absolute -bottom-2 inset-x-10 h-10 bg-indigo-500/20 blur-2xl -z-10"></div>
+        </div>
+
+        <div id="grid" class="grid grid-cols-2 lg:grid-cols-4 gap-6 flex-1 max-h-[500px]">
+            </div>
+
+    </main>
+
+    <script>
+        // --- GAME ASSETS (Chapter 7 Specific) ---
+        const shapes = [
+            {
+                name: "Sphere",
+                clue: "I have only 1 curved surface and 0 vertices. Every point on my surface is equidistant from my center.",
+                svg: `<circle cx="50" cy="50" r="40" fill="url(#grad1)" /><ellipse cx="50" cy="50" rx="40" ry="15" fill="none" stroke="white" stroke-width="0.5" stroke-dasharray="2" opacity="0.5"/>`,
+                gradient: `<radialGradient id="grad1" cx="30%" cy="30%" r="50%"><stop offset="0%" style="stop-color:#818cf8"/><stop offset="100%" style="stop-color:#312e81"/></radialGradient>`
+            },
+            {
+                name: "Cube",
+                clue: "I have 6 flat faces, 12 equal edges, and 8 vertices. All my faces are identical squares.",
+                svg: `<path d="M20 30 L50 10 L80 30 L80 70 L50 90 L20 70 Z" fill="#6366f1"/><path d="M20 30 L50 50 L80 30" fill="none" stroke="white" stroke-opacity="0.3"/><path d="M50 50 L50 90" fill="none" stroke="white" stroke-opacity="0.3"/>`
+            },
+            {
+                name: "Cylinder",
+                clue: "I have 2 flat circular faces and 1 curved surface. I have 0 vertices and 2 curved edges.",
+                svg: `<ellipse cx="50" cy="20" rx="30" ry="10" fill="#a5b4fc"/><rect x="20" y="20" width="60" height="60" fill="#6366f1"/><ellipse cx="50" cy="80" rx="30" ry="10" fill="#4338ca"/>`
+            },
+            {
+                name: "Cone",
+                clue: "I have 1 flat circular face, 1 curved surface, and 1 vertex (apex).",
+                svg: `<path d="M50 10 L15 80 Q50 95 85 80 Z" fill="#6366f1"/><ellipse cx="50" cy="80" rx="35" ry="10" fill="#a5b4fc" fill-opacity="0.5"/>`
+            },
+            {
+                name: "Pyramid",
+                clue: "I have a square base and 4 triangular faces that meet at a single vertex.",
+                svg: `<path d="M50 10 L10 80 L50 95 L90 80 Z" fill="#6366f1"/><path d="M50 10 L50 95" stroke="white" stroke-opacity="0.3"/>`
+            },
+            {
+                name: "Cuboid",
+                clue: "I have 6 rectangular faces, 12 edges, and 8 vertices. Not all my edges are equal.",
+                svg: `<path d="M10 40 L40 20 L90 20 L90 60 L60 80 L10 80 Z" fill="#6366f1"/><path d="M10 40 L60 40 L90 20" fill="none" stroke="white" stroke-opacity="0.3"/><path d="M60 40 L60 80" fill="none" stroke="white" stroke-opacity="0.3"/>`
+            },
+            {
+                name: "Prism",
+                clue: "I have 2 identical triangular bases and 3 rectangular faces. I'm a triangular prism.",
+                svg: `<path d="M20 80 L50 20 L80 80 Z" fill="#6366f1"/><path d="M50 20 L80 10 L80 70 L50 80" fill="#4338ca" opacity="0.8"/>`
+            }
+        ];
+
+        // --- GAME STATE ---
+        let score = 0;
+        let combo = 1;
+        let timeLeft = 100;
+        let currentAnswer = "";
+        let gameActive = false;
+        let timerInterval;
+
+        // --- AUDIO ENGINE (Synthesized) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type, duration) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const sounds = {
+            correct: () => { playTone(523.25, 'sine', 0.3); setTimeout(() => playTone(659.25, 'sine', 0.4), 100); },
+            wrong: () => { playTone(110, 'sawtooth', 0.4); },
+            click: () => { playTone(440, 'triangle', 0.1); },
+            win: () => { [523, 659, 783, 1046].forEach((f, i) => setTimeout(() => playTone(f, 'sine', 0.5), i * 150)); }
+        };
+
+        // --- CORE LOGIC ---
+        function startGame() {
+            sounds.click();
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-container').classList.remove('opacity-0');
+            gameActive = true;
+            score = 0;
+            combo = 1;
+            timeLeft = 100;
+            nextRound();
+            startTimer();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (!gameActive) return;
+                timeLeft -= 0.5; // Drain speed
+                document.getElementById('timer-bar').style.width = timeLeft + "%";
+                
+                if (timeLeft <= 0) endGame();
+            }, 100);
+        }
+
+        function nextRound() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = "";
+            
+            // Randomly pick correct answer
+            const correctShape = shapes[Math.floor(Math.random() * shapes.length)];
+            currentAnswer = correctShape.name;
+            document.getElementById('clue-text').innerText = correctShape.clue;
+
+            // Get 3 random decoys
+            let choices = [correctShape];
+            while (choices.length < 4) {
+                let r = shapes[Math.floor(Math.random() * shapes.length)];
+                if (!choices.includes(r)) choices.push(r);
+            }
+            choices.sort(() => Math.random() - 0.5);
+
+            choices.forEach(shape => {
+                const card = document.createElement('div');
+                card.className = "shape-card glass p-4 md:p-6 rounded-[2rem] flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group";
+                card.onclick = () => checkAnswer(shape.name, card);
+                
+                card.innerHTML = `
+                    <svg viewBox="0 0 100 100" class="w-24 h-24 md:w-32 md:h-32 mb-4 drop-shadow-2xl">
+                        <defs>${shape.gradient || ''}</defs>
+                        ${shape.svg}
+                    </svg>
+                    <span class="text-lg md:text-xl font-bold uppercase tracking-widest text-slate-300 group-hover:text-white transition-colors">
+                        ${shape.name}
+                    </span>
+                    <div class="absolute inset-x-0 bottom-0 h-1 bg-indigo-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function checkAnswer(name, element) {
+            if (!gameActive) return;
+
+            if (name === currentAnswer) {
+                sounds.correct();
+                score += (100 * combo);
+                combo = Math.min(combo + 1, 10);
+                timeLeft = Math.min(timeLeft + 15, 100); // Reward time
+                
+                document.body.classList.add('correct-flash');
+                setTimeout(() => document.body.classList.remove('correct-flash'), 500);
+                
+                updateHUD();
+                nextRound();
+            } else {
+                sounds.wrong();
+                combo = 1;
+                timeLeft -= 10; // Penalty
+                element.classList.add('shake', 'border-red-500/50');
+                setTimeout(() => element.classList.remove('shake'), 400);
+                updateHUD();
+            }
+        }
+
+        function updateHUD() {
+            document.getElementById('score-display').innerText = score.toString().padStart(4, '0');
+            document.getElementById('combo-display').innerText = `x${combo}`;
+            const comboEl = document.getElementById('combo-display');
+            comboEl.style.transform = "scale(1.2)";
+            setTimeout(() => comboEl.style.transform = "scale(1)", 200);
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            sounds.win();
+            
+            document.getElementById('end-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = score;
+            
+            const stars = document.getElementById('star-rating');
+            let starCount = 0;
+            if (score > 500) starCount = 1;
+            if (score > 1500) starCount = 2;
+            if (score > 3000) starCount = 3;
+            
+            stars.innerHTML = "";
+            for(let i=0; i<3; i++) {
+                stars.innerHTML += `<span style="color: ${i < starCount ? '#fbbf24' : '#334155'}">★</span>`;
+            }
+        }
+
+        // Handle Audio Context Unlock for Mobile
+        window.addEventListener('touchstart', () => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }, { once: true });
+
+    </script>
+</body>
+</html>

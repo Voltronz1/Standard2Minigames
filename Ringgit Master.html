@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ringgit Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Quicksand', sans-serif; 
+            background: #fdfcf0; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            margin: 0;
+        }
+        .title-font { font-family: 'Fredoka One', cursive; }
+        .note-100 { width: 120px; } .note-50 { width: 110px; } .note-small { width: 100px; }
+        .money-item { transition: all 0.2s; cursor: grab; }
+        .money-item:hover { transform: translateY(-5px); filter: brightness(1.1); }
+        .tray-item { cursor: pointer; transition: transform 0.2s; }
+        .tray-item:hover { transform: scale(1.1); }
+        .tray-scroll::-webkit-scrollbar { height: 6px; }
+        .tray-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        .floating { animation: float 3s ease-in-out infinite; }
+    </style>
+</head>
+<body>
+
+    <div id="start-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-blue-700 p-6 text-center text-white">
+        <div>
+            <h1 class="title-font text-6xl mb-4 text-yellow-300 floating">RINGGIT MASTER</h1>
+            <h2 class="text-2xl mb-8 opacity-90">Chapter 4: Money Specialist</h2>
+            <div class="bg-white/10 p-6 rounded-3xl mb-8 backdrop-blur-sm border border-white/20">
+                <p class="mb-2">💰 Exact amounts and Change</p>
+                <p class="mb-2">⭐ Smallest coin: 5 sen</p>
+                <p>🏦 Solve the bug-free mission!</p>
+            </div>
+            <button onclick="startGame()" class="bg-yellow-400 hover:bg-yellow-300 text-blue-900 title-font text-3xl px-12 py-4 rounded-full shadow-2xl transition-transform hover:scale-105">
+                RE-START MISSION
+            </button>
+        </div>
+    </div>
+
+    <header class="flex-none flex justify-between items-center bg-white p-4 shadow-sm z-10 border-b-2 border-yellow-100">
+        <div class="flex gap-4">
+            <div class="bg-blue-50 border-2 border-blue-200 px-5 py-1 rounded-2xl">
+                <span class="text-[10px] text-blue-500 font-bold block uppercase">Level</span>
+                <span id="lvl" class="title-font text-2xl text-blue-800 leading-none">1</span>
+            </div>
+            <div class="bg-yellow-50 border-2 border-yellow-200 px-5 py-1 rounded-2xl">
+                <span class="text-[10px] text-yellow-600 font-bold block uppercase">Total Bank</span>
+                <span id="bank" class="title-font text-2xl text-yellow-800 leading-none">0</span>
+            </div>
+        </div>
+        <div class="bg-red-50 border-2 border-red-200 px-6 py-2 rounded-2xl">
+            <span class="text-[10px] text-red-500 font-bold block uppercase">Seconds Left</span>
+            <div id="timer" class="title-font text-2xl text-red-600 leading-none">60</div>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col items-center justify-around p-4 overflow-hidden">
+        <div id="error-msg" class="hidden absolute top-24 bg-red-500 text-white px-6 py-2 rounded-full font-bold animate-bounce z-20">Wrong Amount! Try again.</div>
+        
+        <div class="w-full max-w-4xl flex flex-col md:flex-row gap-6 items-center">
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-xl border-b-8 border-gray-100 w-56 flex flex-col items-center">
+                <div id="item-svg-container" class="w-24 h-24 mb-4"></div>
+                <div id="item-name" class="font-bold text-gray-400 text-xs uppercase tracking-tighter">Sponge Cake</div>
+                <div id="item-price" class="title-font text-3xl text-blue-600">RM 0.00</div>
+            </div>
+
+            <div class="flex-1 bg-white p-8 rounded-[3rem] shadow-2xl relative border-2 border-blue-50 w-full text-center">
+                <div id="mode-badge" class="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-8 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg">EXACT AMOUNT</div>
+                <div id="sub-task" class="hidden text-orange-500 font-bold text-sm mb-2 bg-orange-50 rounded-full py-1">Customer paid RM 100.00</div>
+                <div id="target" class="title-font text-7xl text-blue-600 mb-2">RM 0.00</div>
+                <div class="h-1 bg-gray-50 rounded-full w-3/4 mx-auto my-4"></div>
+                <span class="text-gray-400 text-xs font-bold uppercase">Money in your tray:</span>
+                <div id="tray-total" class="text-4xl font-bold text-gray-700">RM 0.00</div>
+            </div>
+        </div>
+
+        <div id="tray" 
+             class="w-full max-w-2xl h-36 bg-white/40 border-4 border-dashed border-gray-200 rounded-[2.5rem] flex items-center justify-center gap-3 px-6 overflow-x-auto tray-scroll transition-all"
+             ondragover="event.preventDefault(); this.style.backgroundColor='#fff'"
+             ondragleave="this.style.backgroundColor='transparent'"
+             ondrop="handleDrop(event)">
+             <p class="text-gray-300 italic text-sm pointer-events-none">Drag money here or click below...</p>
+        </div>
+
+        <div class="flex gap-6">
+            <button onclick="clearTray()" class="bg-gray-400 hover:bg-gray-500 text-white px-10 py-4 rounded-2xl font-bold transition-transform active:scale-95 shadow-md">RESET TRAY</button>
+            <button onclick="checkPay()" class="bg-green-500 hover:bg-green-600 text-white px-16 py-4 rounded-2xl title-font text-3xl shadow-xl transition-transform active:scale-95">CONFIRM PAYMENT</button>
+        </div>
+    </main>
+
+    <footer class="flex-none bg-blue-800 p-6 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] border-t-4 border-blue-700">
+        <div id="wallet" class="flex flex-nowrap md:flex-wrap justify-start md:justify-center items-end gap-4 overflow-x-auto pb-2"></div>
+    </footer>
+
+    <div id="lit-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6 text-center backdrop-blur-md">
+        <div class="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl">
+            <div class="text-5xl mb-4">🏦</div>
+            <h3 class="title-font text-4xl text-blue-600 mb-2">SHOP PROFIT!</h3>
+            <p class="mb-8 text-gray-500">You earned <span id="reward" class="text-green-600 font-bold">RM 10</span>. How will you manage it?</p>
+            <div class="grid gap-4">
+                <button onclick="litChoice('save')" class="bg-blue-500 text-white p-5 rounded-2xl font-bold hover:bg-blue-600 shadow-lg text-lg">Save in Savings Account 🏦</button>
+                <button onclick="litChoice('donate')" class="bg-pink-500 text-white p-5 rounded-2xl font-bold hover:bg-pink-600 shadow-lg text-lg">Donate to Orphans Fund ❤️</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SVG_ASSETS = {
+            cake: `<svg viewBox="0 0 100 100"><rect x="20" y="50" width="60" height="30" rx="5" fill="#fbcfe8"/><path d="M20 50 Q50 30 80 50" fill="#f472b6"/><circle cx="50" cy="35" r="8" fill="#ef4444"/><rect x="48" y="20" width="4" height="15" fill="#fbbf24"/></svg>`,
+            gift: `<svg viewBox="0 0 100 100"><rect x="25" y="40" width="50" height="45" rx="2" fill="#60a5fa"/><rect x="25" y="60" width="50" height="5" fill="#2563eb"/><rect x="47" y="40" width="6" height="45" fill="#2563eb"/><path d="M50 40 Q30 20 50 20 Q70 20 50 40" fill="none" stroke="#2563eb" stroke-width="4"/></svg>`,
+            robot: `<svg viewBox="0 0 100 100"><rect x="35" y="30" width="30" height="25" rx="3" fill="#94a3b8"/><rect x="30" y="55" width="40" height="35" rx="5" fill="#64748b"/><circle cx="42" cy="40" r="3" fill="#ef4444"/><circle cx="58" cy="40" r="3" fill="#ef4444"/><rect x="20" y="60" width="10" height="25" fill="#94a3b8"/><rect x="70" y="60" width="10" height="25" fill="#94a3b8"/></svg>`
+        };
+
+        const MONEY = [
+            {id:'rm100', v:100, c:'#9333ea', l:'100', s:'note-100', t:'note', icon:'🌺'},
+            {id:'rm50',  v:50,  c:'#06b6d4', l:'50',  s:'note-50',  t:'note', icon:'🌺'},
+            {id:'rm20',  v:20,  c:'#f97316', l:'20',  s:'note-small',t:'note', icon:'🐢'},
+            {id:'rm10',  v:10,  c:'#ef4444', l:'10',  s:'note-small',t:'note', icon:'🌺'},
+            {id:'rm5',   v:5,   c:'#22c55e', l:'5',   s:'note-small',t:'note', icon:'🌺'},
+            {id:'rm1',   v:1,   c:'#3b82f6', l:'1',   s:'note-small',t:'note', icon:'🌺'},
+            {id:'s50',   v:0.5, c:'#fbbf24', l:'50s', s:'coin',      t:'coin', icon:'⚪'},
+            {id:'s20',   v:0.2, c:'#fbbf24', l:'20s', s:'coin',      t:'coin', icon:'⚪'},
+            {id:'s10',   v:0.1, c:'#94a3b8', l:'10s', s:'coin',      t:'coin', icon:'⚪'},
+            {id:'s5',    v:0.05,c:'#d1d5db', l:'5s',  s:'coin',      t:'coin', icon:'⚪'}
+        ];
+
+        let level=1, bank=0, timeLeft=60, active=false, targetVal=0, trayVal=0, trayItems=[];
+
+        function getSVG(m, scale=1) {
+            if(m.t === 'note') {
+                return `<svg viewBox="0 0 100 50" class="${m.s} h-auto pointer-events-none shadow-md" style="transform:scale(${scale})"><rect width="100" height="50" rx="6" fill="${m.c}"/><text x="8" y="15" fill="white" font-size="7" font-weight="bold">RM</text><text x="50" y="32" fill="white" font-family="Fredoka One" font-size="22" text-anchor="middle">${m.l}</text><text x="84" y="42" font-size="10" opacity="0.7">${m.icon}</text></svg>`;
+            }
+            return `<svg viewBox="0 0 50 50" class="w-12 h-12 pointer-events-none drop-shadow-md" style="transform:scale(${scale})"><circle cx="25" cy="25" r="23" fill="${m.c}" stroke="black" stroke-opacity="0.1" stroke-width="2"/><text x="25" y="32" fill="black" fill-opacity="0.4" font-family="Fredoka One" font-size="16" text-anchor="middle">${m.l}</text></svg>`;
+        }
+
+        function startGame() {
+            document.getElementById('start-modal').remove();
+            active = true;
+            renderWallet();
+            newRound();
+            setInterval(tick, 1000);
+        }
+
+        function renderWallet() {
+            const w = document.getElementById('wallet');
+            w.innerHTML = '';
+            MONEY.forEach(m => {
+                const d = document.createElement('div');
+                d.className = 'money-item flex-shrink-0';
+                d.draggable = true;
+                d.innerHTML = getSVG(m);
+                d.onclick = () => add(m);
+                d.ondragstart = (e) => e.dataTransfer.setData('mid', m.id);
+                w.appendChild(d);
+            });
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const id = e.dataTransfer.getData('mid');
+            const m = MONEY.find(x => x.id === id);
+            if(m) add(m);
+            e.target.style.backgroundColor = 'transparent';
+        }
+
+        function add(m) {
+            if(!active) return;
+            trayItems.push({...m, uid: Math.random()});
+            updateTray();
+        }
+
+        function updateTray() {
+            const t = document.getElementById('tray');
+            trayVal = parseFloat(trayItems.reduce((acc, curr) => acc + curr.v, 0).toFixed(2));
+            t.innerHTML = trayItems.length ? '' : '<p class="text-gray-300 italic text-sm pointer-events-none">Drag money here or click below...</p>';
+            trayItems.forEach(item => {
+                const d = document.createElement('div');
+                d.className = 'tray-item flex-shrink-0 scale-90';
+                d.innerHTML = getSVG(item);
+                d.onclick = () => { trayItems = trayItems.filter(x => x.uid !== item.uid); updateTray(); };
+                t.appendChild(d);
+            });
+            document.getElementById('tray-total').innerText = `RM ${trayVal.toFixed(2)}`;
+        }
+
+        function newRound() {
+            trayItems = []; updateTray();
+            const items = [{n:'Fancy Cake', k:'cake'}, {n:'Birthday Gift', k:'gift'}, {n:'Toy Robot', k:'robot'}];
+            const sel = items[Math.floor(Math.random()*items.length)];
+            
+            // FIX: Ensure all prices are multiples of 0.05
+            let rawPrice = (Math.random() * 85 + 5);
+            const price = Math.round(rawPrice / 0.05) * 0.05;
+            
+            document.getElementById('item-svg-container').innerHTML = SVG_ASSETS[sel.k];
+            document.getElementById('item-name').innerText = sel.n;
+            document.getElementById('item-price').innerText = `RM ${price.toFixed(2)}`;
+
+            if(level >= 5) {
+                const paidOpts = [10, 20, 50, 100];
+                const paid = paidOpts.find(p => p > price) || 100;
+                targetVal = parseFloat((paid - price).toFixed(2));
+                document.getElementById('mode-badge').innerText = "GIVE THE CHANGE!";
+                document.getElementById('mode-badge').className = "absolute -top-4 left-1/2 -translate-x-1/2 bg-orange-600 text-white px-8 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg";
+                document.getElementById('sub-task').innerText = `Customer paid RM ${paid.toFixed(2)}`;
+                document.getElementById('sub-task').classList.remove('hidden');
+            } else {
+                targetVal = price;
+                document.getElementById('mode-badge').innerText = "EXACT AMOUNT";
+                document.getElementById('mode-badge').className = "absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-8 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg";
+                document.getElementById('sub-task').classList.add('hidden');
+            }
+            document.getElementById('target').innerText = `RM ${targetVal.toFixed(2)}`;
+        }
+
+        function checkPay() {
+            if(Math.abs(trayVal - targetVal) < 0.01) {
+                active = false;
+                document.getElementById('reward').innerText = `RM ${Math.floor(targetVal + level)}`;
+                document.getElementById('lit-modal').classList.remove('hidden');
+            } else {
+                const err = document.getElementById('error-msg');
+                err.classList.remove('hidden');
+                setTimeout(() => err.classList.add('hidden'), 2000);
+                document.body.animate([{backgroundColor: '#fee2e2'}, {backgroundColor: '#fdfcf0'}], 400);
+            }
+        }
+
+        function litChoice(c) {
+            bank += (c === 'save' ? 100 : 50);
+            level++;
+            document.getElementById('bank').innerText = bank;
+            document.getElementById('lvl').innerText = level;
+            document.getElementById('lit-modal').classList.add('hidden');
+            active = true;
+            newRound();
+        }
+
+        function tick() {
+            if(!active || timeLeft <= 0) return;
+            timeLeft--;
+            document.getElementById('timer').innerText = timeLeft;
+            if(timeLeft === 0) location.reload();
+        }
+
+        function clearTray() { trayItems = []; updateTray(); }
+    </script>
+</body>
+</html>

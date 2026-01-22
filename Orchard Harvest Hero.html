@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orchard Harvest Hero</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #fb923c;
+            --secondary: #4ade80;
+        }
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: radial-gradient(circle at center, #fffbeb 0%, #fef3c7 100%);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #334155;
+        }
+        .heading-font { font-family: 'Fredoka', sans-serif; font-weight: 600; }
+        
+        /* Animations */
+        @keyframes bounce-slow { 0%, 100% { transform: translateY(-8px); } 50% { transform: translateY(8px); } }
+        .bounce-ui { animation: bounce-slow 4s ease-in-out infinite; }
+        
+        .bar-transition { transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .shake-element { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+
+        @keyframes pop-in {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .pop-in { animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        /* Confetti Canvas */
+        #confetti {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="confetti"></canvas>
+
+    <!-- START PAGE -->
+    <div id="start-screen" class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-amber-50/80">
+        <div class="bg-white p-10 md:p-16 rounded-[4rem] shadow-2xl border-b-[16px] border-orange-200 text-center max-w-xl w-full bounce-ui">
+            <div class="w-32 h-32 mx-auto mb-6 bg-orange-100 rounded-full flex items-center justify-center shadow-inner">
+                <svg viewBox="0 0 100 100" class="w-20 h-20">
+                    <circle cx="50" cy="55" r="35" fill="#ef4444" />
+                    <path d="M50 20 Q55 10 65 15" stroke="#92400e" stroke-width="4" fill="none" />
+                    <path d="M52 22 Q65 20 70 30" fill="#22c55e" />
+                </svg>
+            </div>
+            <h1 class="heading-font text-5xl md:text-6xl text-orange-600 mb-4 tracking-tight">ORCHARD HERO</h1>
+            <p class="text-xl text-slate-500 mb-10 leading-relaxed font-medium">Read the charts to harvest the fruit! Collect <b>stars</b> and fill the <b>Juice Meter</b> for bonus points.</p>
+            <button onclick="startGame()" class="bg-orange-500 hover:bg-orange-600 text-white text-3xl heading-font px-14 py-6 rounded-3xl shadow-xl transition-all transform active:scale-95 flex items-center justify-center gap-3 mx-auto">
+                PLAY NOW
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN GAME CONTAINER -->
+    <div id="game-container" class="hidden glass p-6 md:p-10 rounded-[3.5rem] shadow-2xl border-b-[12px] border-slate-200 max-w-3xl w-full relative mx-4 pop-in">
+        
+        <!-- Dashboard -->
+        <div class="flex flex-wrap justify-between items-center mb-8 gap-4">
+            <div class="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100">
+                <div class="p-2 bg-orange-100 rounded-lg">
+                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <div>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Score</span>
+                    <span id="score" class="text-2xl heading-font text-slate-700">0</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col items-center flex-1 min-w-[120px]">
+                <div class="flex items-center gap-2 mb-1">
+                    <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" /></svg>
+                    <span id="timer-text" class="text-4xl heading-font text-slate-700">60</span>
+                </div>
+                <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                    <div id="timer-bar" class="h-full bg-gradient-to-r from-red-400 to-rose-500 transition-all duration-1000" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <div id="star-display" class="flex gap-1 text-3xl text-slate-200 drop-shadow-sm">
+                <span>★</span><span>★</span><span>★</span>
+            </div>
+        </div>
+
+        <!-- Juice Power-Up Mechanic -->
+        <div class="mb-10">
+            <div class="flex justify-between items-end mb-2">
+                <span class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span>
+                    Juice Meter
+                </span>
+                <span id="juice-label" class="text-xs font-bold text-purple-600">0%</span>
+            </div>
+            <div class="h-5 w-full bg-slate-100 rounded-full p-1 border border-slate-200 shadow-inner">
+                <div id="juice-bar" class="h-full bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Question Section -->
+        <div class="text-center mb-8">
+            <h2 id="question" class="text-3xl md:text-4xl heading-font text-slate-600">How many Apples?</h2>
+        </div>
+        
+        <!-- The Chart -->
+        <div id="chart" class="flex items-end justify-around h-64 mb-10 bg-slate-50/50 rounded-3xl p-6 border-2 border-dashed border-slate-200 relative">
+            <!-- Bars injected via JS -->
+        </div>
+
+        <!-- Interactive Input -->
+        <div class="flex gap-4 max-w-sm mx-auto">
+            <input type="number" id="guess" placeholder="?" class="bg-white p-6 rounded-3xl text-4xl heading-font w-full text-center outline-none border-4 border-slate-100 focus:border-orange-400 transition-all shadow-inner" inputmode="numeric">
+            <button onclick="checkAnswer()" class="bg-orange-500 text-white px-10 py-6 rounded-3xl text-3xl heading-font hover:bg-orange-600 shadow-lg shadow-orange-200 transition-all transform active:scale-95">
+                OK
+            </button>
+        </div>
+    </div>
+
+    <!-- GAME OVER SCREEN -->
+    <div id="end-screen" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-md">
+        <div class="bg-white p-12 rounded-[4rem] text-center max-w-md w-full shadow-2xl border-b-[16px] border-indigo-100">
+            <h2 class="heading-font text-5xl text-slate-800 mb-2">FINISHED!</h2>
+            <p class="text-slate-400 font-bold uppercase tracking-widest mb-8">Harvest Summary</p>
+            
+            <div class="bg-slate-50 rounded-3xl p-8 mb-8">
+                <div id="final-stars" class="text-6xl mb-4 tracking-widest text-yellow-400 drop-shadow-md"></div>
+                <div class="text-slate-400 text-sm font-bold uppercase mb-1">Total Points</div>
+                <div id="final-score" class="text-7xl heading-font text-orange-500 mb-2">0</div>
+                <p id="rank-message" class="text-slate-500 font-medium italic"></p>
+            </div>
+
+            <button onclick="location.reload()" class="w-full bg-slate-800 hover:bg-slate-700 text-white text-2xl heading-font py-6 rounded-3xl shadow-xl transition-all flex items-center justify-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                RESTART
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS & STATE ---
+        const fruitTypes = [
+            { name: 'Apple', color: '#ef4444', icon: `<svg viewBox="0 0 100 100"><circle cx="50" cy="55" r="35" fill="#ef4444" /><path d="M50 20 Q55 10 65 15" stroke="#92400e" stroke-width="4" fill="none" /><path d="M52 22 Q65 20 70 30" fill="#22c55e" /></svg>` },
+            { name: 'Pear', color: '#a3e635', icon: `<svg viewBox="0 0 100 100"><path d="M50 15 Q30 40 30 70 A20 20 0 0 0 70 70 Q70 40 50 15" fill="#a3e635" /><path d="M50 15 Q52 5 60 10" stroke="#713f12" stroke-width="3" fill="none" /></svg>` },
+            { name: 'Cherry', color: '#b91c1c', icon: `<svg viewBox="0 0 100 100"><circle cx="35" cy="70" r="15" fill="#b91c1c" /><circle cx="65" cy="70" r="15" fill="#b91c1c" /><path d="M35 55 Q50 40 50 20 Q50 40 65 55" stroke="#166534" stroke-width="3" fill="none" /></svg>` },
+            { name: 'Grape', color: '#8b5cf6', icon: `<svg viewBox="0 0 100 100"><circle cx="50" cy="40" r="10" fill="#8b5cf6" /><circle cx="40" cy="55" r="10" fill="#8b5cf6" /><circle cx="60" cy="55" r="10" fill="#8b5cf6" /><circle cx="50" cy="70" r="10" fill="#8b5cf6" /><path d="M50 30 V15" stroke="#166534" stroke-width="4" /></svg>` }
+        ];
+
+        let state = {
+            score: 0,
+            timeLeft: 60,
+            juice: 0,
+            correctAnswer: 0,
+            timerActive: false,
+            multiplier: 1
+        };
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // --- AUDIO ENGINE ---
+        function playSound(freq, type, duration, vol = 0.1) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const sounds = {
+            correct: () => {
+                playSound(523.25, 'sine', 0.3); // C5
+                setTimeout(() => playSound(659.25, 'sine', 0.3), 100); // E5
+            },
+            wrong: () => {
+                playSound(150, 'sawtooth', 0.4, 0.05);
+            },
+            powerup: () => {
+                const notes = [440, 554, 659, 880];
+                notes.forEach((n, i) => setTimeout(() => playSound(n, 'triangle', 0.5), i * 100));
+            }
+        };
+
+        // --- GAME CORE ---
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-container').classList.remove('hidden');
+            state.timerActive = true;
+            nextRound();
+            startTimer();
+            // Trigger audio context
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function startTimer() {
+            const timerText = document.getElementById('timer-text');
+            const timerBar = document.getElementById('timer-bar');
+            
+            const interval = setInterval(() => {
+                if (!state.timerActive) {
+                    clearInterval(interval);
+                    return;
+                }
+                state.timeLeft--;
+                timerText.innerText = state.timeLeft;
+                timerBar.style.width = (state.timeLeft / 60 * 100) + '%';
+
+                if (state.timeLeft <= 10) {
+                    timerText.classList.add('text-red-500', 'animate-pulse');
+                }
+
+                if (state.timeLeft <= 0) {
+                    state.timerActive = false;
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function nextRound() {
+            const chart = document.getElementById('chart');
+            chart.innerHTML = "";
+            
+            const targetIdx = Math.floor(Math.random() * fruitTypes.length);
+            const targetFruit = fruitTypes[targetIdx];
+            document.getElementById('question').innerText = `How many ${targetFruit.name}s?`;
+
+            fruitTypes.forEach((fruit, i) => {
+                const count = Math.floor(Math.random() * 9) + 2;
+                if (i === targetIdx) state.correctAnswer = count;
+
+                // Create bar
+                const barWrapper = document.createElement('div');
+                barWrapper.className = "flex flex-col items-center justify-end h-full flex-1 gap-4 group";
+                
+                // Stack of fruit icons
+                const stack = document.createElement('div');
+                stack.className = "flex flex-col-reverse items-center mb-1";
+                for(let j=0; j < count; j++) {
+                    const icon = document.createElement('div');
+                    icon.className = "w-6 h-6 md:w-8 md:h-8 -mb-4 transition-transform group-hover:scale-110";
+                    icon.innerHTML = fruit.icon;
+                    stack.appendChild(icon);
+                }
+
+                const bar = document.createElement('div');
+                bar.className = "bar-transition w-10 md:w-16 rounded-t-2xl shadow-sm relative";
+                bar.style.height = "0%";
+                bar.style.backgroundColor = fruit.color + "22"; // Translucent
+                bar.style.border = `3px solid ${fruit.color}`;
+                
+                const label = document.createElement('span');
+                label.className = "text-[10px] font-black uppercase tracking-widest text-slate-400";
+                label.innerText = fruit.name;
+
+                barWrapper.appendChild(stack);
+                barWrapper.appendChild(bar);
+                barWrapper.appendChild(label);
+                chart.appendChild(barWrapper);
+
+                // Animate bar growth
+                setTimeout(() => {
+                    bar.style.height = (count * 8) + "%";
+                }, 50);
+            });
+        }
+
+        function checkAnswer() {
+            const input = document.getElementById('guess');
+            const userVal = parseInt(input.value);
+            const container = document.getElementById('game-container');
+
+            if (userVal === state.correctAnswer) {
+                handleSuccess();
+            } else {
+                handleError();
+            }
+
+            input.value = "";
+            input.focus();
+        }
+
+        function handleSuccess() {
+            sounds.correct();
+            const points = 100 * state.multiplier;
+            state.score += points;
+            state.juice += 20;
+
+            // Juice Meter Check
+            if (state.juice >= 100) {
+                state.juice = 0;
+                state.score += 500;
+                state.timeLeft = Math.min(60, state.timeLeft + 5);
+                sounds.powerup();
+                spawnConfetti();
+            }
+
+            updateUI();
+            nextRound();
+        }
+
+        function handleError() {
+            sounds.wrong();
+            state.juice = Math.max(0, state.juice - 15);
+            const container = document.getElementById('game-container');
+            container.classList.add('shake-element');
+            setTimeout(() => container.classList.remove('shake-element'), 500);
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('score').innerText = state.score.toLocaleString();
+            document.getElementById('juice-bar').style.width = state.juice + '%';
+            document.getElementById('juice-label').innerText = state.juice + '%';
+            
+            // Star logic
+            const starNodes = document.getElementById('star-display').children;
+            const thresholds = [1000, 2500, 5000];
+            thresholds.forEach((t, i) => {
+                if (state.score >= t) {
+                    starNodes[i].classList.add('text-yellow-400');
+                    starNodes[i].classList.remove('text-slate-200');
+                }
+            });
+        }
+
+        function endGame() {
+            document.getElementById('end-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = state.score.toLocaleString();
+            
+            let stars = "";
+            let msg = "";
+            if (state.score >= 5000) { stars = "★★★"; msg = "Legendary Harvester!"; }
+            else if (state.score >= 2500) { stars = "★★☆"; msg = "Expert Analyst!"; }
+            else if (state.score >= 1000) { stars = "★☆☆"; msg = "Great Effort!"; }
+            else { stars = "☆☆☆"; msg = "Keep Practicing!"; }
+            
+            document.getElementById('final-stars').innerText = stars;
+            document.getElementById('rank-message').innerText = msg;
+            spawnConfetti();
+        }
+
+        // --- EFFECTS: CONFETTI ---
+        const canvas = document.getElementById('confetti');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.onresize = resizeCanvas;
+        resizeCanvas();
+
+        function spawnConfetti() {
+            for (let i = 0; i < 50; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: -20,
+                    size: Math.random() * 8 + 4,
+                    color: `hsl(${Math.random() * 360}, 70%, 60%)`,
+                    velX: Math.random() * 4 - 2,
+                    velY: Math.random() * 5 + 2,
+                    rot: Math.random() * 360
+                });
+            }
+        }
+
+        function drawConfetti() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((p, i) => {
+                p.x += p.velX;
+                p.y += p.velY;
+                p.rot += 5;
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot * Math.PI / 180);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                ctx.restore();
+                if (p.y > canvas.height) particles.splice(i, 1);
+            });
+            requestAnimationFrame(drawConfetti);
+        }
+        drawConfetti();
+
+        // Keyboard support
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') checkAnswer();
+        });
+    </script>
+</body>
+</html>

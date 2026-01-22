@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juice Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Bubblegum+Sans&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0f172a;
+            --flask-glass: rgba(255, 255, 255, 0.15);
+            --neon-green: #22c55e;
+        }
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: var(--bg-deep);
+            color: white;
+            overflow: hidden;
+            margin: 0;
+            user-select: none;
+        }
+
+        .font-bubble { font-family: 'Bubblegum Sans', cursive; }
+
+        /* Laboratory Background Patterns */
+        .lab-bg {
+            position: fixed;
+            inset: 0;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(34, 197, 94, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(129, 140, 248, 0.05) 0%, transparent 50%);
+            z-index: -1;
+        }
+
+        /* Flask Styling */
+        .flask-container {
+            perspective: 1000px;
+        }
+
+        .main-flask {
+            width: 220px;
+            height: 350px;
+            background: var(--flask-glass);
+            border: 4px solid rgba(255, 255, 255, 0.4);
+            border-top: none;
+            position: relative;
+            border-bottom-left-radius: 40px;
+            border-bottom-right-radius: 40px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5), inset 0 0 20px rgba(255,255,255,0.1);
+        }
+
+        .liquid-layer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.5s ease;
+            border-top: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .measuring-line {
+            position: absolute;
+            right: 0;
+            width: 15px;
+            height: 2px;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .measuring-label {
+            position: absolute;
+            right: 20px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.5);
+            transform: translateY(-50%);
+        }
+
+        /* Particle Effects */
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+            animation: float-up var(--d) linear forwards;
+        }
+
+        @keyframes float-up {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-100px) scale(0); opacity: 0; }
+        }
+
+        /* UI Animations */
+        .scale-in { animation: scaleIn 0.3s ease-out; }
+        @keyframes scaleIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .shake { animation: shake 0.4s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .glow-success {
+            box-shadow: 0 0 50px #22c55e;
+            border-color: #4ade80 !important;
+        }
+
+        .btn-juice {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .btn-juice:hover { transform: translateY(-4px) scale(1.05); }
+        .btn-juice:active { transform: translateY(2px) scale(0.95); }
+
+        /* Modal Overlay */
+        .overlay {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-bg"></div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-slate-800 p-8 rounded-[3rem] border-4 border-indigo-500 text-center shadow-2xl scale-in">
+            <div class="mb-6 flex justify-center">
+                <svg width="100" height="100" viewBox="0 0 100 100">
+                    <path d="M30 20 L70 20 L80 80 Q80 90 70 90 L30 90 Q20 90 20 80 Z" fill="#4f46e5" />
+                    <rect x="35" y="10" width="30" height="10" rx="2" fill="#818cf8" />
+                    <circle cx="40" cy="45" r="5" fill="white" opacity="0.3" />
+                    <circle cx="55" cy="65" r="8" fill="white" opacity="0.2" />
+                </svg>
+            </div>
+            <h1 class="text-5xl font-bubble text-indigo-400 mb-4 uppercase tracking-wider">Juice Lab</h1>
+            <p class="text-slate-300 mb-8 text-lg">Master the art of volume! Mix the ingredients precisely to match the customer's request.</p>
+            <button onclick="startGame()" class="w-full bg-indigo-600 hover:bg-indigo-500 py-4 rounded-2xl text-2xl font-bold shadow-lg transition-all">START BREWING</button>
+            <p class="mt-4 text-xs text-slate-500 uppercase tracking-widest">Chemistry Chapter 6: Volume & Capacity</p>
+        </div>
+    </div>
+
+    <!-- Game HUD -->
+    <div id="game-ui" class="hidden h-screen flex flex-col p-6 max-w-4xl mx-auto">
+        <!-- Top Bar -->
+        <div class="flex justify-between items-center mb-6">
+            <div class="bg-slate-800/80 px-6 py-2 rounded-2xl border-2 border-slate-700">
+                <span class="text-slate-400 text-sm block uppercase font-bold">Score</span>
+                <span id="score-display" class="text-3xl font-bubble text-white">0</span>
+            </div>
+            <div class="text-center">
+                <div id="timer-ring" class="relative w-20 h-20 flex items-center justify-center">
+                    <svg class="absolute inset-0 w-full h-full -rotate-90">
+                        <circle cx="40" cy="40" r="35" stroke="currentColor" stroke-width="6" fill="transparent" class="text-slate-700" />
+                        <circle id="timer-progress" cx="40" cy="40" r="35" stroke="currentColor" stroke-width="6" fill="transparent" stroke-dasharray="220" stroke-dashoffset="0" class="text-indigo-500 transition-all duration-1000" />
+                    </svg>
+                    <span id="timer-text" class="text-2xl font-bold">60</span>
+                </div>
+            </div>
+            <div class="bg-slate-800/80 px-6 py-2 rounded-2xl border-2 border-slate-700">
+                <span class="text-slate-400 text-sm block uppercase font-bold">Best</span>
+                <span id="high-score" class="text-3xl font-bubble text-indigo-400">0</span>
+            </div>
+        </div>
+
+        <!-- Main Workspace -->
+        <div class="flex-1 flex flex-col md:flex-row items-center justify-center gap-12">
+            <!-- Left: Order Info -->
+            <div class="text-center md:text-left space-y-6 flex-1">
+                <div class="bg-indigo-900/40 p-6 rounded-3xl border-2 border-indigo-500/30">
+                    <h2 class="text-indigo-300 text-xs uppercase font-black tracking-tighter mb-1">Customer Order</h2>
+                    <div id="target-volume" class="text-6xl font-bubble text-white">500ml</div>
+                    <p class="text-indigo-200/60 text-sm italic mt-2">"Make it exactly as requested!"</p>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-2">
+                    <div id="star-1" class="text-slate-600 transition-colors duration-500"><svg class="w-10 h-10 mx-auto" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg></div>
+                    <div id="star-2" class="text-slate-600 transition-colors duration-500"><svg class="w-10 h-10 mx-auto" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg></div>
+                    <div id="star-3" class="text-slate-600 transition-colors duration-500"><svg class="w-10 h-10 mx-auto" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg></div>
+                </div>
+            </div>
+
+            <!-- Center: Flask -->
+            <div class="flask-container py-10" id="flask-anim-target">
+                <div class="main-flask" id="flask-ui">
+                    <div id="liquid" class="liquid-layer" style="height: 0%; background-color: #22c55e;">
+                        <!-- Rotating wave removed -->
+                    </div>
+                    <!-- Measurement Markings -->
+                    <div id="measurements" class="absolute inset-0 pointer-events-none"></div>
+                    <div id="current-readout" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-2xl font-bold opacity-0 transition-opacity">0ml</div>
+                </div>
+            </div>
+
+            <!-- Right: Controls -->
+            <div class="flex-1 w-full max-w-[250px] space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="addLiquid(250, '#ef4444')" class="btn-juice bg-rose-600/20 border-2 border-rose-500 p-4 rounded-2xl">
+                        <span class="block font-bold">+250</span>
+                        <span class="text-xs opacity-60">ML</span>
+                    </button>
+                    <button onclick="addLiquid(100, '#3b82f6')" class="btn-juice bg-blue-600/20 border-2 border-blue-500 p-4 rounded-2xl">
+                        <span class="block font-bold">+100</span>
+                        <span class="text-xs opacity-60">ML</span>
+                    </button>
+                    <button onclick="addLiquid(50, '#f59e0b')" class="btn-juice bg-amber-600/20 border-2 border-amber-500 p-4 rounded-2xl">
+                        <span class="block font-bold">+50</span>
+                        <span class="text-xs opacity-60">ML</span>
+                    </button>
+                    <button onclick="addLiquid(10, '#ec4899')" class="btn-juice bg-pink-600/20 border-2 border-pink-500 p-4 rounded-2xl">
+                        <span class="block font-bold">+10</span>
+                        <span class="text-xs opacity-60">ML</span>
+                    </button>
+                </div>
+                
+                <button onclick="resetFlask()" class="w-full bg-slate-700 hover:bg-slate-600 py-3 rounded-2xl font-bold flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    DUMP TRAY
+                </button>
+
+                <button onclick="dispenseJuice()" class="w-full bg-green-600 hover:bg-green-500 py-5 rounded-3xl text-xl font-black shadow-xl border-b-4 border-green-800 active:border-b-0 active:translate-y-1 transition-all">
+                    SERVE JUICE!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="end-screen" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 overlay">
+        <div class="max-w-md w-full bg-slate-800 p-10 rounded-[3rem] border-4 border-rose-500 text-center shadow-2xl scale-in">
+            <h2 class="text-4xl font-bubble text-rose-400 mb-2">Shift Ended!</h2>
+            <div class="text-6xl font-black text-white mb-6" id="final-score">0</div>
+            
+            <div class="space-y-4 mb-8">
+                <div class="flex justify-between text-slate-400">
+                    <span>Juices Served:</span>
+                    <span id="stat-served" class="text-white font-bold">0</span>
+                </div>
+                <div class="flex justify-between text-slate-400">
+                    <span>Accuracy Rating:</span>
+                    <span id="stat-accuracy" class="text-white font-bold">0%</span>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="w-full bg-rose-600 hover:bg-rose-500 py-4 rounded-2xl text-2xl font-bold shadow-lg transition-all mb-4">PLAY AGAIN</button>
+            <button onclick="window.location.reload()" class="text-slate-500 hover:text-white transition-colors">BACK TO LAB ENTRANCE</button>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        let state = {
+            score: 0,
+            highScore: localStorage.getItem('juiceLab_highscore') || 0,
+            currentVol: 0,
+            targetVol: 0,
+            timeLeft: 60,
+            gameActive: false,
+            timerInterval: null,
+            difficulty: 1,
+            servedCount: 0,
+            totalAttempts: 0,
+            successAttempts: 0
+        };
+
+        const MAX_CAPACITY = 1000;
+        const FLASK_UI = document.getElementById('liquid');
+        const READOUT = document.getElementById('current-readout');
+
+        // Initialize measuring lines
+        function createMeasurements() {
+            const container = document.getElementById('measurements');
+            container.innerHTML = '';
+            for (let i = 100; i <= 1000; i += 100) {
+                const bottomPercent = (i / MAX_CAPACITY) * 100;
+                
+                const line = document.createElement('div');
+                line.className = 'measuring-line';
+                line.style.bottom = `${bottomPercent}%`;
+                
+                const label = document.createElement('div');
+                label.className = 'measuring-label';
+                label.style.bottom = `${bottomPercent}%`;
+                label.textContent = `${i}ml`;
+                
+                container.appendChild(line);
+                container.appendChild(label);
+            }
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.add('hidden');
+            document.getElementById('game-ui').classList.remove('hidden');
+            
+            state = {
+                score: 0,
+                highScore: localStorage.getItem('juiceLab_highscore') || 0,
+                currentVol: 0,
+                targetVol: 0,
+                timeLeft: 60,
+                gameActive: true,
+                difficulty: 1,
+                servedCount: 0,
+                totalAttempts: 0,
+                successAttempts: 0
+            };
+            
+            document.getElementById('high-score').textContent = state.highScore;
+            document.getElementById('score-display').textContent = '0';
+            
+            createMeasurements();
+            nextLevel();
+            startTimer();
+        }
+
+        function nextLevel() {
+            let factor = 100;
+            if (state.servedCount > 3) factor = 50;
+            if (state.servedCount > 8) factor = 10;
+            
+            const min = 200;
+            const max = 1000;
+            state.targetVol = Math.floor(Math.random() * ((max - min) / factor + 1)) * factor + min;
+            
+            document.getElementById('target-volume').textContent = state.targetVol + 'ml';
+            resetFlask();
+            updateStars(3);
+        }
+
+        function addLiquid(amount, color) {
+            if (!state.gameActive) return;
+            
+            state.currentVol = Math.min(MAX_CAPACITY, state.currentVol + amount);
+            
+            FLASK_UI.style.backgroundColor = color;
+            FLASK_UI.style.height = (state.currentVol / MAX_CAPACITY * 100) + '%';
+            
+            READOUT.textContent = state.currentVol + 'ml';
+            READOUT.style.opacity = '1';
+            clearTimeout(window.readoutTimer);
+            window.readoutTimer = setTimeout(() => READOUT.style.opacity = '0', 1000);
+            
+            spawnParticles(color);
+        }
+
+        function resetFlask() {
+            state.currentVol = 0;
+            FLASK_UI.style.height = '0%';
+            FLASK_UI.style.backgroundColor = '#22c55e';
+            READOUT.style.opacity = '0';
+        }
+
+        function spawnParticles(color) {
+            for(let i=0; i<5; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.style.left = Math.random() * 80 + 10 + '%';
+                p.style.bottom = '10%';
+                p.style.width = Math.random() * 8 + 4 + 'px';
+                p.style.height = p.style.width;
+                p.style.background = color;
+                p.style.setProperty('--d', (Math.random() * 1 + 0.5) + 's');
+                FLASK_UI.appendChild(p);
+                setTimeout(() => p.remove(), 1500);
+            }
+        }
+
+        function dispenseJuice() {
+            if (!state.gameActive) return;
+            
+            state.totalAttempts++;
+            const diff = Math.abs(state.currentVol - state.targetVol);
+            
+            if (state.currentVol === state.targetVol) {
+                handleSuccess(100);
+            } else if (diff <= 50) {
+                handleSuccess(50);
+            } else {
+                handleFailure();
+            }
+        }
+
+        function handleSuccess(points) {
+            state.score += points;
+            state.servedCount++;
+            state.successAttempts++;
+            state.timeLeft = Math.min(60, state.timeLeft + 5);
+            
+            document.getElementById('score-display').textContent = state.score;
+            document.getElementById('flask-ui').classList.add('glow-success');
+            
+            setTimeout(() => {
+                document.getElementById('flask-ui').classList.remove('glow-success');
+                nextLevel();
+            }, 600);
+        }
+
+        function handleFailure() {
+            document.getElementById('flask-anim-target').classList.add('shake');
+            setTimeout(() => document.getElementById('flask-anim-target').classList.remove('shake'), 400);
+            
+            const currentStars = document.querySelectorAll('.text-indigo-400').length;
+            updateStars(currentStars - 1);
+            
+            if (currentStars <= 1) {
+                resetFlask();
+                updateStars(3);
+            }
+        }
+
+        function updateStars(count) {
+            for(let i=1; i<=3; i++) {
+                const star = document.getElementById('star-' + i);
+                if (i <= count) {
+                    star.classList.add('text-indigo-400');
+                    star.classList.remove('text-slate-600');
+                } else {
+                    star.classList.remove('text-indigo-400');
+                    star.classList.add('text-slate-600');
+                }
+            }
+        }
+
+        function startTimer() {
+            clearInterval(state.timerInterval);
+            state.timerInterval = setInterval(() => {
+                state.timeLeft--;
+                
+                const progress = (state.timeLeft / 60) * 220;
+                document.getElementById('timer-progress').style.strokeDashoffset = 220 - progress;
+                document.getElementById('timer-text').textContent = state.timeLeft;
+                
+                if (state.timeLeft <= 10) {
+                    document.getElementById('timer-ring').classList.add('text-rose-500');
+                } else {
+                    document.getElementById('timer-ring').classList.remove('text-rose-500');
+                }
+
+                if (state.timeLeft <= 0) endGame();
+            }, 1000);
+        }
+
+        function endGame() {
+            state.gameActive = false;
+            clearInterval(state.timerInterval);
+            
+            if (state.score > state.highScore) {
+                localStorage.setItem('juiceLab_highscore', state.score);
+            }
+            
+            document.getElementById('final-score').textContent = state.score;
+            document.getElementById('stat-served').textContent = state.servedCount;
+            
+            const acc = state.totalAttempts > 0 ? Math.round((state.successAttempts / state.totalAttempts) * 100) : 0;
+            document.getElementById('stat-accuracy').textContent = acc + '%';
+            
+            document.getElementById('end-screen').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

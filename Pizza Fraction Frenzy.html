@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pizza Fraction Frenzy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background: #2d1b0d;
+            margin: 0;
+            overflow: hidden;
+            user-select: none;
+        }
+        .bungee { font-family: 'Bungee', cursive; }
+        
+        /* High-Quality Kitchen Background */
+        .kitchen-bg {
+            background: linear-gradient(to bottom, #3d2b1f 0%, #2d1b0d 100%);
+            position: relative;
+        }
+
+        .tiles {
+            background-image: 
+                linear-gradient(45deg, #eee 25%, transparent 25%), 
+                linear-gradient(-45deg, #eee 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #eee 75%), 
+                linear-gradient(-45deg, transparent 75%, #eee 75%);
+            background-size: 60px 60px;
+            background-position: 0 0, 0 30px, 30px 30px, 30px 0;
+            background-color: #ddd;
+            opacity: 0.1;
+        }
+
+        /* Moving Conveyor Belt Texture (Leftwards) */
+        .belt-texture {
+            background: repeating-linear-gradient(90deg, #222, #222 40px, #333 40px, #333 80px);
+            animation: moveBelt 1.5s linear infinite;
+        }
+        @keyframes moveBelt {
+            from { background-position: 0 0; }
+            to { background-position: -80px 0; }
+        }
+
+        /* Fever Mode Glow */
+        .fever-active {
+            animation: feverGlow 1s ease-in-out infinite alternate;
+        }
+        @keyframes feverGlow {
+            from { box-shadow: inset 0 0 50px rgba(255, 165, 0, 0.2); background-color: #fef3c7; }
+            to { box-shadow: inset 0 0 100px rgba(255, 69, 0, 0.5); background-color: #ffedd5; }
+        }
+
+        .conveyor-item {
+            position: absolute;
+            left: 110%;
+            top: 50%;
+            transform: translateY(-50%);
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Animations */
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        .floating { animation: float 3s ease-in-out infinite; }
+
+        @keyframes cloudMove { from { left: -200px; } to { left: 100%; } }
+        .cloud { position: absolute; animation: cloudMove 20s linear infinite; opacity: 0.6; }
+
+        .score-popup { position: absolute; animation: scoreFloat 0.8s ease-out forwards; pointer-events: none; z-index: 60; }
+        @keyframes scoreFloat { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-80px) scale(1.5); } }
+
+        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-2px, 0, 0); } 20%, 80% { transform: translate3d(4px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-6px, 0, 0); } 40%, 60% { transform: translate3d(6px, 0, 0); } }
+
+        canvas#particles {
+            position: absolute;
+            top: 0; left: 0;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .golden-glow {
+            filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.8));
+        }
+    </style>
+</head>
+<body class="h-screen w-screen relative kitchen-bg">
+
+    <canvas id="particles"></canvas>
+
+    <!-- KITCHEN ENVIRONMENT -->
+    <div class="absolute inset-0 tiles pointer-events-none"></div>
+    
+    <!-- Window with Clouds -->
+    <div class="absolute top-10 left-1/2 -translate-x-1/2 w-64 h-40 bg-blue-300 border-8 border-orange-900 rounded-lg overflow-hidden shadow-inner flex items-center">
+        <div class="cloud top-10" style="animation-duration: 35s;">☁️</div>
+        <div class="cloud top-20" style="animation-duration: 25s; animation-delay: -5s;">☁️</div>
+        <div class="absolute inset-0 bg-blue-400/20"></div>
+    </div>
+
+    <!-- Ovens -->
+    <div class="absolute top-20 left-20 w-40 h-40 bg-gray-800 border-4 border-gray-700 rounded-lg flex flex-col items-center justify-center shadow-2xl">
+        <div class="w-32 h-20 bg-orange-900/50 rounded border-2 border-orange-500 flex items-center justify-center">
+            <div class="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+        </div>
+        <div class="flex gap-2 mt-4">
+            <div class="w-4 h-4 rounded-full bg-red-600"></div>
+            <div class="w-4 h-4 rounded-full bg-green-600"></div>
+        </div>
+    </div>
+
+    <!-- START SCREEN -->
+    <div id="start-screen" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-orange-600 text-white p-6 text-center">
+        <div class="relative mb-8 floating">
+            <svg width="220" height="220" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="48" fill="#facc15" stroke="#78350f" stroke-width="4"/>
+                <path d="M50 50 L50 2 L98 50 Z" fill="#ef4444" stroke="#78350f" stroke-width="2"/>
+                <circle cx="70" cy="25" r="5" fill="#991b1b"/>
+                <circle cx="40" cy="40" r="3" fill="#166534"/>
+                <circle cx="50" cy="50" r="4" fill="#fbbf24" class="animate-ping"/>
+            </svg>
+            <div class="absolute -top-6 -right-8 bg-yellow-400 text-orange-800 bungee px-6 py-2 rounded-full rotate-12 border-4 border-white shadow-xl">YEAR 2</div>
+        </div>
+        <h1 class="text-7xl md:text-9xl bungee mb-4 drop-shadow-[0_10px_0_rgba(0,0,0,0.3)]">PIZZA<br>FRENZY</h1>
+        <p class="text-2xl mb-12 max-w-lg font-bold opacity-90 uppercase tracking-widest">Master the Crust. Rule the Kitchen.</p>
+        <button onclick="startGame()" class="bg-white text-orange-600 px-24 py-8 rounded-full text-4xl bungee hover:scale-110 active:scale-95 transition-all shadow-[0_15px_0_#ea580c] hover:shadow-[0_10px_0_#ea580c] border-2 border-orange-400">
+            START SHIFT
+        </button>
+    </div>
+
+    <!-- HUD -->
+    <div id="game-ui" class="hidden fixed inset-0 z-50 flex flex-col pointer-events-none p-6">
+        <div class="flex justify-between items-start w-full pointer-events-auto">
+            <div class="flex flex-col gap-2">
+                <div class="bg-white p-4 rounded-3xl shadow-xl border-4 border-orange-500 min-w-[160px]">
+                    <div class="text-orange-500 font-bold text-xs uppercase tracking-widest">Revenue</div>
+                    <div id="score-val" class="text-5xl bungee text-orange-600">$0</div>
+                </div>
+                <div id="combo-meter" class="bg-gradient-to-r from-orange-500 to-red-600 text-white p-2 rounded-full text-center bungee scale-0 transition-transform shadow-lg border-2 border-white">
+                    COMBO x<span id="combo-val">1</span>
+                </div>
+            </div>
+            
+            <div class="relative group">
+                <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-6 py-1 rounded-full text-xs bungee z-10 shadow-lg group-hover:scale-110 transition-transform">ORDER UP!</div>
+                <div id="order-card" class="bg-white pt-10 pb-6 px-14 rounded-lg shadow-2xl border-b-[16px] border-gray-200 text-center scale-125 mx-10 transition-colors">
+                    <div id="target-fraction" class="text-7xl bungee text-orange-700 tracking-tighter">1/2</div>
+                    <div id="decimal-hint" class="text-orange-400 text-sm font-bold mt-2 h-4 italic"></div>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-3xl shadow-xl border-4 border-orange-500 min-w-[130px] text-right">
+                <div class="text-orange-500 font-bold text-xs uppercase tracking-widest">Shift Ends</div>
+                <div id="timer-val" class="text-5xl bungee text-orange-600">60s</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME ENVIRONMENT -->
+    <div id="game-container" class="relative w-full h-full">
+        <!-- Conveyor System -->
+        <div class="absolute bottom-[28%] w-full h-64">
+            <div class="absolute top-full w-full h-16 bg-black/20"></div>
+            <div id="belt-visual" class="belt-texture w-full h-full border-y-[12px] border-gray-700 shadow-2xl relative overflow-hidden transition-colors duration-500">
+                <div id="pizza-pipeline" class="relative w-full h-full"></div>
+            </div>
+        </div>
+        
+        <!-- Chef -->
+        <div id="chef-container" class="absolute bottom-4 left-24 pointer-events-none transition-all duration-300 z-40">
+            <svg id="chef-svg" width="300" height="380" viewBox="0 0 100 130">
+                <defs>
+                    <filter id="chef-glow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+                        <feOffset dx="0" dy="0" result="offsetblur" />
+                        <feFlood flood-color="gold" />
+                        <feComposite in2="offsetblur" operator="in" />
+                        <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
+                    </filter>
+                </defs>
+                <!-- Hat -->
+                <path d="M30 35 Q30 5 50 5 Q70 5 70 35 L70 50 L30 50 Z" fill="white" stroke="#333" stroke-width="2"/>
+                <!-- Face -->
+                <circle cx="50" cy="75" r="28" fill="#ffdbac" stroke="#333" stroke-width="2"/>
+                <g id="chef-eyes">
+                    <circle cx="42" cy="72" r="3" fill="black"/>
+                    <circle cx="58" cy="72" r="3" fill="black"/>
+                </g>
+                <path id="chef-mouth" d="M42 85 Q50 80 58 85" fill="none" stroke="#5c3e2e" stroke-width="2" stroke-linecap="round"/>
+                <!-- Body -->
+                <path d="M25 105 Q25 95 50 95 Q75 95 75 105 L75 130 L25 130 Z" fill="white" stroke="#333" stroke-width="2"/>
+                <!-- Apron -->
+                <rect x="35" y="105" width="30" height="25" fill="#f87171" rx="2"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- RESULT SCREEN -->
+    <div id="result-screen" class="hidden fixed inset-0 z-[110] flex flex-col items-center justify-center bg-black/98 text-white p-6 text-center">
+        <h2 class="text-7xl bungee mb-2 text-yellow-400">SHIFT COMPLETE!</h2>
+        <div id="final-rank" class="text-3xl bungee text-orange-400 mb-6 bg-white/10 px-8 py-2 rounded-full">RANK: JUNIOR CHEF</div>
+        <div id="final-stars" class="flex gap-4 mb-8 text-8xl"></div>
+        <div class="bg-white/10 p-10 rounded-3xl border-2 border-white/20 mb-10 min-w-[300px]">
+            <div class="text-xl opacity-80 mb-2 uppercase tracking-tighter font-bold">Total Earnings</div>
+            <div id="final-score" class="text-8xl bungee text-yellow-500">$0</div>
+        </div>
+        <button onclick="location.reload()" class="bg-orange-500 text-white px-20 py-8 rounded-full text-4xl bungee hover:scale-105 transition-all shadow-xl active:scale-95 border-b-8 border-orange-800">
+            NEXT SHIFT
+        </button>
+    </div>
+
+    <script>
+        let score = 0, combo = 0, timeLeft = 60, gameActive = false;
+        let targetFraction = { n: 1, d: 2 };
+        let isFever = false, timeSlow = 1.0;
+        let spawnTimeout; // Use timeout for variable spacing
+
+        const possibleFractions = [
+            {n: 1, d: 2}, {n: 1, d: 3}, {n: 2, d: 3}, {n: 1, d: 4}, {n: 3, d: 4},
+            {n: 1, d: 6}, {n: 5, d: 6}, {n: 1, d: 8}, {n: 3, d: 8}, {n: 7, d: 8}
+        ];
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const canvas = document.getElementById('particles');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        class Particle {
+            constructor(x, y, color, type) {
+                this.x = x; this.y = y; this.color = color;
+                this.size = type === 'sauce' ? Math.random() * 12 + 4 : Math.random() * 6 + 2;
+                this.speedX = Math.random() * 10 - 5;
+                this.speedY = Math.random() * -12 - 3;
+                this.gravity = 0.4;
+                this.alpha = 1;
+                this.type = type;
+            }
+            update() {
+                this.x += this.speedX; this.y += this.speedY;
+                this.speedY += this.gravity;
+                this.alpha -= 0.02;
+            }
+            draw() {
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                if(this.type === 'sauce') {
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                } else {
+                    ctx.fillRect(this.x, this.y, this.size, this.size);
+                }
+                ctx.fill();
+            }
+        }
+
+        function createBurst(x, y, color, type) {
+            for (let i = 0; i < (type === 'sauce' ? 8 : 15); i++) particles.push(new Particle(x, y, color, type));
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles = particles.filter(p => p.alpha > 0);
+            particles.forEach(p => { p.update(); p.draw(); });
+            requestAnimationFrame(animateParticles);
+        }
+
+        function playSfx(type) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            
+            if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(isFever ? 880 : 440, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(isFever ? 1760 : 880, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        function updateOrder() {
+            targetFraction = possibleFractions[Math.floor(Math.random() * possibleFractions.length)];
+            const text = document.getElementById('target-fraction');
+            const hint = document.getElementById('decimal-hint');
+            
+            if (Math.random() > 0.7) {
+                const decimal = (targetFraction.n / targetFraction.d).toFixed(2).replace(/\.00$/, '');
+                text.innerText = decimal;
+                hint.innerText = "Check the math!";
+            } else {
+                text.innerText = `${targetFraction.n}/${targetFraction.d}`;
+                hint.innerText = "";
+            }
+            
+            document.getElementById('order-card').classList.add('combo-pulse');
+            setTimeout(() => document.getElementById('order-card').classList.remove('combo-pulse'), 300);
+        }
+
+        function createPizzaSVG(num, den, isGolden) {
+            const crust = isGolden ? '#fcd34d' : '#854d0e';
+            const base = isGolden ? '#fbbf24' : '#fde047';
+            const sauce = '#ef4444';
+            let segments = '';
+            
+            for (let i = 0; i < den; i++) {
+                const start = (i * 360) / den - 90;
+                const end = ((i + 1) * 360) / den - 90;
+                const color = i < num ? sauce : base;
+                const x1 = 50 + 42 * Math.cos(Math.PI * start / 180);
+                const y1 = 50 + 42 * Math.sin(Math.PI * start / 180);
+                const x2 = 50 + 42 * Math.cos(Math.PI * end / 180);
+                const y2 = 50 + 42 * Math.sin(Math.PI * end / 180);
+                segments += `<path d="M 50 50 L ${x1} ${y1} A 42 42 0 0 1 ${x2} ${y2} Z" fill="${color}" stroke="${crust}" stroke-width="2"/>`;
+            }
+
+            return `<svg width="180" height="180" viewBox="0 0 100 100" class="${isGolden ? 'golden-glow' : ''}">
+                <circle cx="50" cy="50" r="46" fill="${crust}"/>
+                ${segments}
+                ${isGolden ? '<circle cx="50" cy="50" r="10" fill="gold" opacity="0.5" class="animate-ping"/>' : ''}
+            </svg>`;
+        }
+
+        function spawn() {
+            if (!gameActive) return;
+            const pipeline = document.getElementById('pizza-pipeline');
+            const item = document.createElement('div');
+            item.className = 'conveyor-item';
+            
+            const isCorrect = Math.random() > 0.6;
+            const isGolden = Math.random() > 0.95;
+            const f = isCorrect ? targetFraction : possibleFractions[Math.floor(Math.random() * possibleFractions.length)];
+            
+            item.innerHTML = createPizzaSVG(f.n, f.d, isGolden);
+            
+            // Calculate duration based on score
+            let duration = Math.max(2500, (8000 - (score * 0.15)) * timeSlow);
+            if(isFever) duration *= 0.6;
+
+            item.style.animation = `slideAcross ${duration}ms linear forwards`;
+            
+            item.onclick = (e) => {
+                if (!gameActive) return;
+                const rect = item.getBoundingClientRect();
+                if (f.n === targetFraction.n && f.d === targetFraction.d) {
+                    handleSuccess(rect.left + 90, rect.top + 90, isGolden);
+                    item.remove();
+                } else {
+                    handleFailure();
+                }
+            };
+
+            pipeline.appendChild(item);
+            
+            // Cleanup when animation ends
+            setTimeout(() => { if(item.parentNode) item.remove(); }, duration + 100);
+
+            // SCHEDULING NEXT SPAWN TO PREVENT OVERLAP
+            // Gap is relative to current speed. Faster belt = shorter gap in time, but safe distance in pixels.
+            let nextGap = (duration / 4) + (Math.random() * 500); 
+            spawnTimeout = setTimeout(spawn, nextGap);
+        }
+
+        function handleSuccess(x, y, isGolden) {
+            combo++;
+            let points = (isGolden ? 100 : 10) * combo * (isFever ? 2 : 1);
+            score += points;
+            playSfx('correct');
+            createBurst(x, y, '#ffffff', 'flour');
+            createBurst(x, y, '#ef4444', 'sauce');
+            
+            if(isGolden) {
+                timeSlow = 1.5;
+                setTimeout(() => timeSlow = 1.0, 5000);
+            }
+
+            if(combo >= 10 && !isFever) triggerFever();
+
+            document.getElementById('score-val').innerText = `$${score}`;
+            const comboMeter = document.getElementById('combo-meter');
+            document.getElementById('combo-val').innerText = combo;
+            comboMeter.classList.remove('scale-0');
+
+            const popup = document.createElement('div');
+            popup.className = 'score-popup bungee text-4xl ' + (isGolden ? 'text-yellow-400' : 'text-orange-500');
+            popup.style.left = x + 'px'; popup.style.top = y + 'px';
+            popup.innerText = `+$${points}`;
+            document.body.appendChild(popup);
+            setTimeout(() => popup.remove(), 800);
+
+            document.getElementById('chef-container').style.transform = 'translateY(-30px) scale(1.1)';
+            setTimeout(() => document.getElementById('chef-container').style.transform = 'translateY(0) scale(1)', 200);
+
+            updateOrder();
+        }
+
+        function triggerFever() {
+            isFever = true;
+            document.getElementById('belt-visual').classList.add('fever-active');
+            document.getElementById('chef-svg').style.filter = 'url(#chef-glow)';
+            setTimeout(() => {
+                isFever = false;
+                document.getElementById('belt-visual').classList.remove('fever-active');
+                document.getElementById('chef-svg').style.filter = '';
+                combo = 0;
+                document.getElementById('combo-meter').classList.add('scale-0');
+            }, 10000);
+        }
+
+        function handleFailure() {
+            combo = 0; isFever = false;
+            playSfx('wrong');
+            document.getElementById('combo-meter').classList.add('scale-0');
+            document.getElementById('belt-visual').classList.remove('fever-active');
+            document.getElementById('chef-svg').style.filter = '';
+            document.body.classList.add('shake');
+            document.getElementById('chef-mouth').setAttribute('d', 'M42 80 Q50 85 58 80'); // Frown
+            setTimeout(() => {
+                document.body.classList.remove('shake');
+                document.getElementById('chef-mouth').setAttribute('d', 'M42 85 Q50 80 58 85');
+            }, 400);
+        }
+
+        function startGame() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            animateParticles();
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-ui').classList.remove('hidden');
+            gameActive = true;
+            updateOrder();
+
+            setInterval(() => {
+                const eyes = document.getElementById('chef-eyes');
+                eyes.style.opacity = '0';
+                setTimeout(() => eyes.style.opacity = '1', 150);
+            }, 4000);
+
+            // Start the recursive spawning
+            spawn();
+
+            const timer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer-val').innerText = timeLeft + 's';
+                if (timeLeft <= 10) document.getElementById('timer-val').classList.add('text-red-600', 'animate-ping');
+                if (timeLeft <= 0) { 
+                    clearInterval(timer); 
+                    clearTimeout(spawnTimeout);
+                    endGame(); 
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            gameActive = false;
+            document.getElementById('result-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = `$${score}`;
+            
+            let rank = "Kitchen Hand";
+            if(score > 3000) rank = "Grand Master Pizzaiolo";
+            else if(score > 1500) rank = "Sous Chef";
+            else if(score > 500) rank = "Pizza Cook";
+            document.getElementById('final-rank').innerText = `RANK: ${rank}`;
+
+            let stars = score >= 2000 ? 3 : (score >= 800 ? 2 : (score >= 200 ? 1 : 0));
+            const container = document.getElementById('final-stars');
+            for(let i=0; i<3; i++) container.innerHTML += `<span class="${i < stars ? 'text-yellow-400' : 'text-gray-700'} animate-bounce" style="animation-delay: ${i*0.1}s">★</span>`;
+        }
+
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes slideAcross { from { left: 110%; } to { left: -250px; } }`;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

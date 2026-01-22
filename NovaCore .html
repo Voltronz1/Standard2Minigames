@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Space+Grotesk:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00f2ff;
+            --error: #ff4757;
+            --success: #2ed573;
+            --bg: #020617;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg);
+            color: white;
+            margin: 0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .space-font { font-family: 'Space Grotesk', sans-serif; }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+        }
+
+        #rocket-stage {
+            position: absolute;
+            left: 12%;
+            bottom: -25%;
+            z-index: 20;
+            transition: bottom 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.6s ease;
+            filter: drop-shadow(0 0 40px rgba(0, 242, 255, 0.4));
+        }
+
+        #rocket-container {
+            transform: rotate(-5deg);
+            animation: float-hover 4s ease-in-out infinite;
+        }
+
+        @keyframes float-hover {
+            0%, 100% { transform: translateY(0) rotate(-5deg); }
+            50% { transform: translateY(-15px) rotate(-2deg); }
+        }
+
+        .engine-flame { 
+            transform-origin: top center;
+            animation: flame-flicker 0.08s infinite alternate; 
+        }
+        
+        @keyframes flame-flicker {
+            from { transform: scaleY(1) scaleX(1); opacity: 0.7; filter: blur(4px); }
+            to { transform: scaleY(1.3) scaleX(1.05); opacity: 1; filter: blur(2px); }
+        }
+
+        .falling-rocket { animation: tumble 1.5s ease-in infinite !important; }
+
+        @keyframes tumble {
+            0% { transform: rotate(-5deg) translateY(0); }
+            25% { transform: rotate(-25deg) translateX(-10px); }
+            75% { transform: rotate(15deg) translateX(10px); }
+            100% { transform: rotate(-5deg) translateY(0); }
+        }
+
+        .btn-hex {
+            clip-path: polygon(5% 0, 95% 0, 100% 50%, 95% 100%, 5% 100%, 0% 50%);
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(0, 242, 255, 0.1);
+        }
+
+        .btn-correct {
+            background: rgba(46, 213, 115, 0.4) !important;
+            border-color: var(--success) !important;
+            box-shadow: 0 0 30px var(--success) !important;
+        }
+
+        .btn-wrong {
+            background: rgba(255, 71, 87, 0.4) !important;
+            border-color: var(--error) !important;
+            box-shadow: 0 0 30px var(--error) !important;
+            animation: btn-shake 0.3s ease-in-out;
+        }
+
+        @keyframes btn-shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-12px); }
+            75% { transform: translateX(12px); }
+        }
+
+        .hyper-drive { animation: hyper-shake 0.1s infinite; }
+        @keyframes hyper-shake {
+            0% { transform: translate(2px, 2px) rotate(-5deg); }
+            50% { transform: translate(-4px, -4px) rotate(-3deg); }
+            100% { transform: translate(2px, -2px) rotate(-7deg); }
+        }
+
+        .fuel-warning { animation: pulse-red 1s infinite; color: var(--error) !important; }
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        canvas { position: fixed; top: 0; left: 0; z-index: 0; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <canvas id="starfield"></canvas>
+
+    <div id="app" class="relative z-10 h-screen w-screen flex flex-col">
+
+        <header id="hud" class="hidden p-6 flex justify-between items-center">
+            <div class="glass px-6 py-4 rounded-3xl flex items-center gap-10">
+                <div>
+                    <span id="fuel-label" class="text-[10px] text-cyan-400 font-bold tracking-[0.3em] block mb-2 uppercase">Core Fuel Levels</span>
+                    <div class="w-48 h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div id="fuel-bar" class="h-full bg-cyan-400 w-full transition-all duration-100 ease-linear shadow-[0_0_15px_#00f2ff]"></div>
+                    </div>
+                </div>
+                <div class="text-center border-l border-white/10 pl-10">
+                    <span class="text-[10px] text-slate-400 font-bold block uppercase tracking-widest">Score</span>
+                    <span id="score" class="space-font text-2xl text-white">0000</span>
+                </div>
+            </div>
+
+            <div class="glass px-8 py-4 rounded-3xl">
+                <span id="timer" class="space-font text-3xl tabular-nums tracking-tighter text-cyan-400">00:00</span>
+            </div>
+        </header>
+
+        <main class="flex-1 flex flex-col items-center justify-center p-6 relative">
+
+            <div id="rocket-stage">
+                <div id="rocket-container" class="w-40 h-80">
+                    <svg viewBox="0 0 120 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="bodyGrad" x1="60" y1="10" x2="60" y2="130" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#F8FAFC"/>
+                                <stop offset="100%" stop-color="#E2E8F0"/>
+                            </linearGradient>
+                            <linearGradient id="finGrad" x1="0" y1="90" x2="120" y2="130" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#8B5CF6"/> <stop offset="100%" stop-color="#6D28D9"/> </linearGradient>
+                            <linearGradient id="cockpitReflect" x1="50" y1="30" x2="70" y2="60" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="white" stop-opacity="0.8"/>
+                                <stop offset="100%" stop-color="white" stop-opacity="0.1"/>
+                            </linearGradient>
+                            <filter id="glow">
+                                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                <feMerge>
+                                    <feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                        </defs>
+
+                        <g class="engine-flame">
+                            <path id="flame-svg" d="M45 130 Q60 300 75 130 Z" fill="#00f2ff" opacity="0.6" filter="url(#glow)"/>
+                            <path d="M52 130 Q60 240 68 130 Z" fill="#70f9ff" opacity="0.8" />
+                            <path id="inner-flame" d="M56 130 Q60 190 64 130 Z" fill="white" />
+                        </g>
+
+                        <path d="M60 10 L100 90 L100 130 L60 120 L20 130 L20 90 Z" fill="url(#bodyGrad)" stroke="#CBD5E1" stroke-width="0.5"/>
+                        <path d="M60 10 L60 120" stroke="#CBD5E1" stroke-width="0.5" opacity="0.5"/>
+                        <circle cx="60" cy="50" r="12" fill="#020617" stroke="#00f2ff" stroke-width="1.5"/>
+                        <circle cx="60" cy="50" r="12" fill="#00f2ff" opacity="0.2" filter="blur(2px)"/> 
+                        <path d="M54 44 Q 60 38, 66 44" stroke="url(#cockpitReflect)" stroke-width="2" stroke-linecap="round" opacity="0.8"/> 
+                        
+                        <path d="M20 90 L0 140 L20 125 Z" fill="url(#finGrad)" stroke="#A78BFA" stroke-width="0.5"/>
+                        <path d="M100 90 L120 140 L100 125 Z" fill="url(#finGrad)" stroke="#A78BFA" stroke-width="0.5"/>
+
+                        <rect x="50" y="120" width="20" height="8" rx="1" fill="#334155" />
+                        <rect x="52" y="128" width="16" height="4" rx="1" fill="#1e293b" />
+                    </svg>
+                </div>
+            </div>
+
+            <div id="start-screen" class="text-center z-30">
+                <h1 class="space-font text-8xl font-bold tracking-tighter mb-4 italic text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-500">NOVA CORE</h1>
+                <p class="text-cyan-400 mb-12 tracking-[0.5em] uppercase text-[10px] font-bold">Maintain Fuel Pressure | Chapter 1</p>
+                <button onclick="launch()" class="glass px-16 py-6 rounded-full text-xl font-bold hover:scale-105 transition-all border-t border-white/20 uppercase tracking-widest">Initiate Burn</button>
+            </div>
+
+            <div id="game-stage" class="hidden w-full max-w-2xl z-20">
+                <div id="question-card" class="glass p-12 rounded-[3rem]">
+                    <h2 id="q-text" class="text-4xl font-bold mb-12 space-font text-center leading-tight text-white">---</h2>
+                    <div id="options-grid" class="grid grid-cols-1 gap-4"></div>
+                </div>
+            </div>
+
+            <div id="end-screen" class="hidden glass p-16 rounded-[4rem] text-center z-40">
+                <h2 id="end-title" class="text-6xl font-bold space-font mb-4 italic">MISSION STATUS</h2>
+                <div class="h-px w-full bg-white/10 my-8"></div>
+                <p id="final-score" class="text-8xl text-cyan-400 font-bold mb-10 space-font">0000</p>
+                <button onclick="location.reload()" class="bg-white text-black px-12 py-5 rounded-full font-bold uppercase tracking-widest hover:bg-cyan-400 transition-colors">Emergency Reboot</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('starfield');
+        const ctx = canvas.getContext('2d');
+        let stars = [];
+        let speedMult = 1.2;
+
+        function initStars() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            stars = [];
+            for(let i=0; i<200; i++) {
+                stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, z: Math.random() * canvas.width, o: Math.random() });
+            }
+        }
+
+        function drawStars() {
+            ctx.fillStyle = "#020617";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            stars.forEach(s => {
+                let px = (s.x - canvas.width/2) * (canvas.width/s.z) + canvas.width/2;
+                let py = (s.y - canvas.height/2) * (canvas.width/s.z) + canvas.height/2;
+                let size = (1 - s.z/canvas.width) * 3;
+                ctx.fillStyle = `rgba(255, 255, 255, ${s.o})`;
+                if(speedMult > 5) {
+                    ctx.strokeStyle = `rgba(0, 242, 255, ${s.o * 0.5})`;
+                    ctx.lineWidth = size;
+                    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py - (speedMult * 8)); ctx.stroke();
+                }
+                ctx.beginPath(); ctx.arc(px, py, size, 0, Math.PI*2); ctx.fill();
+                s.z -= 2 * speedMult;
+                if(s.z <= 0) s.z = canvas.width;
+            });
+            requestAnimationFrame(drawStars);
+        }
+
+        const audio = new (window.AudioContext || window.webkitAudioContext)();
+        function playSfx(f, t, d, v, slide = 0) {
+            const o = audio.createOscillator();
+            const g = audio.createGain();
+            o.type = t; o.frequency.setValueAtTime(f, audio.currentTime);
+            if(slide) o.frequency.exponentialRampToValueAtTime(slide, audio.currentTime + d);
+            g.gain.setValueAtTime(v, audio.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audio.currentTime + d);
+            o.connect(g); g.connect(audio.destination);
+            o.start(); o.stop(audio.currentTime + d);
+        }
+
+        const bank = [
+            { q: "What is 300 + 5?", a: "305", o: ["305", "350", "35", "503"] },
+            { q: "Place value of 8 in 812?", a: "Hundreds", o: ["Hundreds", "Tens", "Ones", "Thousands"] },
+            { q: "Rounding: 45 to nearest ten?", a: "50", o: ["40", "50", "45", "100"] },
+            { q: "Identify: Nine hundred and two", a: "902", o: ["920", "902", "92", "9002"] },
+            { q: "Value of digit 7 in 172?", a: "70", o: ["7", "70", "700", "17"] },
+            { q: "Next number: 100, 200, 300, ...?", a: "400", o: ["301", "310", "400", "500"] },
+            { q: "Partition 608.", a: "600 + 8", o: ["600 + 8", "60 + 8", "600 + 80", "6 + 0 + 8"] }
+        ];
+
+        // ADDED startTime TO THE STATE
+        let state = { score: 0, fuel: 100, idx: 0, active: false, altitude: 35, startTime: null };
+
+        function launch() {
+            if (audio.state === 'suspended') audio.resume();
+            playSfx(100, 'sine', 1.5, 0.3, 400);
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-stage').classList.remove('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            state.active = true;
+            state.startTime = Date.now(); // SET START TIME
+            renderQ();
+
+            setInterval(() => {
+                if(!state.active) return;
+                state.fuel -= 0.025;
+                updateUI();
+                if(state.fuel <= 0) endGame("Fuel Depleted");
+            }, 10);
+        }
+
+        function updateUI() {
+            const bar = document.getElementById('fuel-bar');
+            const label = document.getElementById('fuel-label');
+            const rocket = document.getElementById('rocket-stage');
+            const timerEl = document.getElementById('timer');
+            
+            bar.style.width = state.fuel + '%';
+            if(state.fuel < 25) {
+                bar.style.backgroundColor = 'var(--error)';
+                label.classList.add('fuel-warning');
+            } else {
+                bar.style.backgroundColor = 'var(--primary)';
+                label.classList.remove('fuel-warning');
+            }
+
+            // --- TIMER LOGIC ---
+            if(state.startTime) {
+                const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+                const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                const secs = (elapsed % 60).toString().padStart(2, '0');
+                timerEl.innerText = `${mins}:${secs}`;
+            }
+
+            // --- HEIGHT FIX ---
+            state.altitude = 10 + (state.fuel * 0.25);
+            rocket.style.bottom = state.altitude + '%';
+        }
+
+        // ... (Rest of your original functions: renderQ, checkAns, endGame) ...
+        function renderQ() {
+            if(state.idx >= bank.length) return endGame("Sector Cleared");
+            const q = bank[state.idx];
+            document.getElementById('q-text').innerText = q.q;
+            const grid = document.getElementById('options-grid');
+            grid.innerHTML = '';
+            [...q.o].sort(() => Math.random() - 0.5).forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "btn-hex py-6 px-10 text-xl font-bold space-font text-left";
+                btn.innerText = opt;
+                btn.onclick = () => checkAns(opt, q.a, btn);
+                grid.appendChild(btn);
+            });
+        }
+
+        function checkAns(val, correct, btn) {
+            const rocket = document.getElementById('rocket-container');
+            const flame = document.getElementById('flame-svg');
+
+            if(val === correct) {
+                btn.classList.add('btn-correct');
+                playSfx(880, 'sine', 0.4, 0.2, 1200);
+                state.score += 2000;
+                state.fuel = Math.min(100, state.fuel + 15);
+                document.getElementById('score').innerText = state.score.toString().padStart(4, '0');
+                speedMult = 25;
+                rocket.classList.add('hyper-drive');
+
+                setTimeout(() => {
+                    speedMult = 1.2;
+                    rocket.classList.remove('hyper-drive');
+                    state.idx++;
+                    renderQ();
+                }, 800);
+            } else {
+                btn.classList.add('btn-wrong');
+                playSfx(110, 'sawtooth', 0.5, 0.2, 40);
+                state.fuel = Math.max(0, state.fuel - 10);
+                rocket.classList.add('falling-rocket');
+                flame.setAttribute('fill', '#ff4757');
+
+                setTimeout(() => {
+                    rocket.classList.remove('falling-rocket');
+                    flame.setAttribute('fill', '#00f2ff');
+                }, 1000);
+            }
+        }
+
+        function endGame(title) {
+            state.active = false;
+            document.getElementById('game-stage').classList.add('hidden');
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+            document.getElementById('end-title').innerText = title;
+            document.getElementById('final-score').innerText = state.score;
+            const rocket = document.getElementById('rocket-stage');
+            if (title === "Sector Cleared") {
+                rocket.style.transition = "bottom 2s ease-in";
+                rocket.style.bottom = '150%';
+                speedMult = 40;
+            } else {
+                rocket.style.transition = "bottom 1.5s ease-in";
+                rocket.style.bottom = '-30%';
+                speedMult = 0;
+            }
+        }
+
+        window.addEventListener('resize', initStars);
+        initStars();
+        drawStars();
+    </script>
+</body>
+</html>
