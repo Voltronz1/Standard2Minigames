@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> </title>
+    <title>Nova Core: Star Mission</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Space+Grotesk:wght@300;700&display=swap" rel="stylesheet">
     <style>
@@ -12,6 +12,7 @@
             --error: #ff4757;
             --success: #2ed573;
             --bg: #020617;
+            --star-gold: #fbbf24;
         }
 
         body {
@@ -73,8 +74,13 @@
         .btn-hex {
             clip-path: polygon(5% 0, 95% 0, 100% 50%, 95% 100%, 5% 100%, 0% 50%);
             background: rgba(255, 255, 255, 0.05);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             border: 1px solid rgba(0, 242, 255, 0.1);
+        }
+
+        .btn-hex:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
         }
 
         .btn-correct {
@@ -109,6 +115,15 @@
             50% { opacity: 0.5; }
         }
 
+        .star-pop {
+            animation: star-in 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            opacity: 0;
+            transform: scale(0);
+        }
+        @keyframes star-in {
+            to { opacity: 1; transform: scale(1); }
+        }
+
         canvas { position: fixed; top: 0; left: 0; z-index: 0; pointer-events: none; }
     </style>
 </head>
@@ -118,6 +133,7 @@
 
     <div id="app" class="relative z-10 h-screen w-screen flex flex-col">
 
+        <!-- HUD -->
         <header id="hud" class="hidden p-6 flex justify-between items-center">
             <div class="glass px-6 py-4 rounded-3xl flex items-center gap-10">
                 <div>
@@ -139,6 +155,7 @@
 
         <main class="flex-1 flex flex-col items-center justify-center p-6 relative">
 
+            <!-- Rocket Graphics -->
             <div id="rocket-stage">
                 <div id="rocket-container" class="w-40 h-80">
                     <svg viewBox="0 0 120 300" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -149,10 +166,6 @@
                             </linearGradient>
                             <linearGradient id="finGrad" x1="0" y1="90" x2="120" y2="130" gradientUnits="userSpaceOnUse">
                                 <stop offset="0%" stop-color="#8B5CF6"/> <stop offset="100%" stop-color="#6D28D9"/> </linearGradient>
-                            <linearGradient id="cockpitReflect" x1="50" y1="30" x2="70" y2="60" gradientUnits="userSpaceOnUse">
-                                <stop offset="0%" stop-color="white" stop-opacity="0.8"/>
-                                <stop offset="100%" stop-color="white" stop-opacity="0.1"/>
-                            </linearGradient>
                             <filter id="glow">
                                 <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
                                 <feMerge>
@@ -168,38 +181,35 @@
                         </g>
 
                         <path d="M60 10 L100 90 L100 130 L60 120 L20 130 L20 90 Z" fill="url(#bodyGrad)" stroke="#CBD5E1" stroke-width="0.5"/>
-                        <path d="M60 10 L60 120" stroke="#CBD5E1" stroke-width="0.5" opacity="0.5"/>
                         <circle cx="60" cy="50" r="12" fill="#020617" stroke="#00f2ff" stroke-width="1.5"/>
-                        <circle cx="60" cy="50" r="12" fill="#00f2ff" opacity="0.2" filter="blur(2px)"/> 
-                        <path d="M54 44 Q 60 38, 66 44" stroke="url(#cockpitReflect)" stroke-width="2" stroke-linecap="round" opacity="0.8"/> 
-                        
                         <path d="M20 90 L0 140 L20 125 Z" fill="url(#finGrad)" stroke="#A78BFA" stroke-width="0.5"/>
                         <path d="M100 90 L120 140 L100 125 Z" fill="url(#finGrad)" stroke="#A78BFA" stroke-width="0.5"/>
-
                         <rect x="50" y="120" width="20" height="8" rx="1" fill="#334155" />
-                        <rect x="52" y="128" width="16" height="4" rx="1" fill="#1e293b" />
                     </svg>
                 </div>
             </div>
 
+            <!-- UI Panels -->
             <div id="start-screen" class="text-center z-30">
                 <h1 class="space-font text-8xl font-bold tracking-tighter mb-4 italic text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-500">NOVA CORE</h1>
-                <p class="text-cyan-400 mb-12 tracking-[0.5em] uppercase text-[10px] font-bold">Maintain Fuel Pressure | Chapter 1</p>
+                <p class="text-cyan-400 mb-12 tracking-[0.5em] uppercase text-[10px] font-bold">Chapter 1: Numbers up to 1000</p>
                 <button onclick="launch()" class="glass px-16 py-6 rounded-full text-xl font-bold hover:scale-105 transition-all border-t border-white/20 uppercase tracking-widest">Initiate Burn</button>
             </div>
 
             <div id="game-stage" class="hidden w-full max-w-2xl z-20">
                 <div id="question-card" class="glass p-12 rounded-[3rem]">
-                    <h2 id="q-text" class="text-4xl font-bold mb-12 space-font text-center leading-tight text-white">---</h2>
-                    <div id="options-grid" class="grid grid-cols-1 gap-4"></div>
+                    <div id="progress-indicator" class="text-[10px] text-white/30 uppercase tracking-[0.3em] font-bold mb-4">Warp Point 1 / 20</div>
+                    <h2 id="q-text" class="text-3xl font-bold mb-12 space-font text-center leading-tight text-white">---</h2>
+                    <div id="options-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 </div>
             </div>
 
-            <div id="end-screen" class="hidden glass p-16 rounded-[4rem] text-center z-40">
-                <h2 id="end-title" class="text-6xl font-bold space-font mb-4 italic">MISSION STATUS</h2>
+            <div id="end-screen" class="hidden glass p-12 md:p-16 rounded-[4rem] text-center z-40 w-full max-w-2xl">
+                <h2 id="end-title" class="text-5xl font-bold space-font mb-4 italic uppercase tracking-tighter">MISSION STATUS</h2>
+                <div id="star-rating" class="flex justify-center gap-4 my-8"></div>
                 <div class="h-px w-full bg-white/10 my-8"></div>
-                <p id="final-score" class="text-8xl text-cyan-400 font-bold mb-10 space-font">0000</p>
-                <button onclick="location.reload()" class="bg-white text-black px-12 py-5 rounded-full font-bold uppercase tracking-widest hover:bg-cyan-400 transition-colors">Emergency Reboot</button>
+                <p id="final-score" class="text-8xl text-white font-bold space-font mb-10">0000</p>
+                <button onclick="location.reload()" class="bg-white text-black px-12 py-5 rounded-full font-bold uppercase tracking-widest hover:bg-cyan-400 hover:scale-105 transition-all">Emergency Reboot</button>
             </div>
         </main>
     </div>
@@ -251,32 +261,49 @@
             o.start(); o.stop(audio.currentTime + d);
         }
 
-        const bank = [
-            { q: "What is 300 + 5?", a: "305", o: ["305", "350", "35", "503"] },
-            { q: "Place value of 8 in 812?", a: "Hundreds", o: ["Hundreds", "Tens", "Ones", "Thousands"] },
-            { q: "Rounding: 45 to nearest ten?", a: "50", o: ["40", "50", "45", "100"] },
-            { q: "Identify: Nine hundred and two", a: "902", o: ["920", "902", "92", "9002"] },
-            { q: "Value of digit 7 in 172?", a: "70", o: ["7", "70", "700", "17"] },
-            { q: "Next number: 100, 200, 300, ...?", a: "400", o: ["301", "310", "400", "500"] },
-            { q: "Partition 608.", a: "600 + 8", o: ["600 + 8", "60 + 8", "600 + 80", "6 + 0 + 8"] }
+        // Direct questions taken from Textbook Page 1-50
+        let bank = [
+            { q: "Say 316 in words.", a: "three hundred and sixteen", o: ["three hundred and sixteen", "three hundred and sixty", "three zero one six", "three hundred sixty"] },
+            { q: "What is 807 in words?", a: "eight hundred and seven", o: ["eight hundred and seven", "eight hundred and seventy", "eight zero seven", "eight hundred seventeen"] },
+            { q: "Write 935 in words.", a: "nine hundred and thirty-five", o: ["nine hundred and thirty-five", "nine hundred and fifty-three", "nine hundred and five", "nine hundred and thirteen"] },
+            { q: "What is the place value of 9 in 935?", a: "hundreds", o: ["hundreds", "tens", "ones", "units"] },
+            { q: "What is the digit value of 3 in 935?", a: "30", o: ["3", "30", "300", "0"] },
+            { q: "300 + 20 + 3 = ?", a: "323", o: ["323", "3023", "233", "332"] },
+            { q: "500 + 30 + 5 = ?", a: "535", o: ["535", "5035", "355", "553"] },
+            { q: "How do you write 508 in words?", a: "five hundred and eight", o: ["five hundred and eight", "five hundred and eighty", "five zero eight", "fifty-eight"] },
+            { q: "What is the number right AFTER 699?", a: "700", o: ["700", "690", "710", "698"] },
+            { q: "What is the number right BEFORE 799?", a: "798", o: ["798", "800", "797", "700"] },
+            { q: "Make the BIGGEST number using cards 6, 0, and 9.", a: "960", o: ["960", "906", "690", "609"] },
+            { q: "Which symbol fits: 665 is ___ than 667.", a: "smaller (<)", o: ["smaller (<)", "bigger (>)", "equal (=)", "same"] },
+            { q: "Partition 458: 400 + 50 + ___?", a: "8", o: ["8", "80", "5", "58"] },
+            { q: "Solve: 2 hundreds + 5 tens + 14 ones.", a: "264", o: ["264", "2514", "254", "364"] },
+            { q: "What is 10 less than 400?", a: "390", o: ["390", "399", "410", "300"] },
+            { q: "What is 100 more than 850?", a: "950", o: ["950", "860", "750", "1000"] },
+            { q: "In 107, what is the position of 0?", a: "tens", o: ["tens", "hundreds", "ones", "units"] },
+            { q: "Round 119 to the nearest ten.", a: "120", o: ["120", "110", "100", "130"] },
+            { q: "Pattern: 550, 560, 570, ... what is next?", a: "580", o: ["580", "571", "600", "590"] },
+            { q: "In 435, which digit is worth 30?", a: "3", o: ["3", "4", "5", "30"] }
         ];
 
-        // ADDED startTime TO THE STATE
-        let state = { score: 0, fuel: 100, idx: 0, active: false, altitude: 35, startTime: null };
+        let state = { 
+            score: 0, fuel: 100, idx: 0, active: false, 
+            altitude: 35, startTime: null, perfect: true 
+        };
 
         function launch() {
             if (audio.state === 'suspended') audio.resume();
+            bank = bank.sort(() => Math.random() - 0.5);
             playSfx(100, 'sine', 1.5, 0.3, 400);
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('game-stage').classList.remove('hidden');
             document.getElementById('hud').classList.remove('hidden');
             state.active = true;
-            state.startTime = Date.now(); // SET START TIME
+            state.startTime = Date.now();
             renderQ();
 
-            setInterval(() => {
-                if(!state.active) return;
-                state.fuel -= 0.025;
+            const fuelTick = setInterval(() => {
+                if(!state.active) { clearInterval(fuelTick); return; }
+                state.fuel -= 0.025; 
                 updateUI();
                 if(state.fuel <= 0) endGame("Fuel Depleted");
             }, 10);
@@ -289,15 +316,10 @@
             const timerEl = document.getElementById('timer');
             
             bar.style.width = state.fuel + '%';
-            if(state.fuel < 25) {
-                bar.style.backgroundColor = 'var(--error)';
-                label.classList.add('fuel-warning');
-            } else {
-                bar.style.backgroundColor = 'var(--primary)';
-                label.classList.remove('fuel-warning');
-            }
+            bar.style.backgroundColor = state.fuel < 25 ? 'var(--error)' : 'var(--primary)';
+            if(state.fuel < 25) label.classList.add('fuel-warning');
+            else label.classList.remove('fuel-warning');
 
-            // --- TIMER LOGIC ---
             if(state.startTime) {
                 const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
                 const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
@@ -305,18 +327,20 @@
                 timerEl.innerText = `${mins}:${secs}`;
             }
 
-            // --- HEIGHT FIX ---
             state.altitude = 10 + (state.fuel * 0.25);
             rocket.style.bottom = state.altitude + '%';
         }
 
-        // ... (Rest of your original functions: renderQ, checkAns, endGame) ...
         function renderQ() {
             if(state.idx >= bank.length) return endGame("Sector Cleared");
+            
             const q = bank[state.idx];
+            document.getElementById('progress-indicator').innerText = `Warp Point ${state.idx + 1} / ${bank.length}`;
             document.getElementById('q-text').innerText = q.q;
+            
             const grid = document.getElementById('options-grid');
             grid.innerHTML = '';
+            
             [...q.o].sort(() => Math.random() - 0.5).forEach(opt => {
                 const btn = document.createElement('button');
                 btn.className = "btn-hex py-6 px-10 text-xl font-bold space-font text-left";
@@ -329,11 +353,14 @@
         function checkAns(val, correct, btn) {
             const rocket = document.getElementById('rocket-container');
             const flame = document.getElementById('flame-svg');
+            const allBtns = document.querySelectorAll('.btn-hex');
+            
+            allBtns.forEach(b => b.disabled = true);
 
             if(val === correct) {
                 btn.classList.add('btn-correct');
                 playSfx(880, 'sine', 0.4, 0.2, 1200);
-                state.score += 2000;
+                state.score += 2500;
                 state.fuel = Math.min(100, state.fuel + 15);
                 document.getElementById('score').innerText = state.score.toString().padStart(4, '0');
                 speedMult = 25;
@@ -346,6 +373,7 @@
                     renderQ();
                 }, 800);
             } else {
+                state.perfect = false;
                 btn.classList.add('btn-wrong');
                 playSfx(110, 'sawtooth', 0.5, 0.2, 40);
                 state.fuel = Math.max(0, state.fuel - 10);
@@ -355,6 +383,8 @@
                 setTimeout(() => {
                     rocket.classList.remove('falling-rocket');
                     flame.setAttribute('fill', '#00f2ff');
+                    allBtns.forEach(b => b.disabled = false);
+                    btn.classList.remove('btn-wrong');
                 }, 1000);
             }
         }
@@ -366,6 +396,25 @@
             document.getElementById('end-screen').classList.remove('hidden');
             document.getElementById('end-title').innerText = title;
             document.getElementById('final-score').innerText = state.score;
+            
+            const starContainer = document.getElementById('star-rating');
+            starContainer.innerHTML = '';
+            
+            let starsEarned = 0;
+            if (title === "Sector Cleared") {
+                if (state.perfect) starsEarned = 3;
+                else if (state.fuel > 50) starsEarned = 2;
+                else starsEarned = 1;
+            }
+
+            for(let i=0; i<3; i++) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'star-pop';
+                wrapper.style.animationDelay = `${i * 0.2}s`;
+                wrapper.innerHTML = `<svg width="50" height="50" viewBox="0 0 24 24" fill="${i < starsEarned ? 'var(--star-gold)' : 'rgba(255,255,255,0.1)'}" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>`;
+                starContainer.appendChild(wrapper);
+            }
+
             const rocket = document.getElementById('rocket-stage');
             if (title === "Sector Cleared") {
                 rocket.style.transition = "bottom 2s ease-in";
